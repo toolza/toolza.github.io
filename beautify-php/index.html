@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code Beautifier</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="../../tools/common.js" defer></script>
+  <link rel="stylesheet" href="../../tools/styles.css">
+  <!-- Prism.js CSS for syntax highlighting -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" />
+</head>
+<body>
+<div id="header"></div>
+<div class="beautifywrap">
+<div class="container">
+  <h1>Code Beautifier</h1>
+  <div class="controls">
+    <select id="languageSelector">
+      <option value="php">PHP</option>
+      <option value="javascript">JavaScript</option>
+      <option value="html">HTML</option>
+      <option value="css">CSS</option>
+    </select>
+    <button id="beautifyBtn">Beautify Code</button>
+    <button id="copyBtn">Copy to Clipboard</button>
+    <button id="downloadBtn">Download as .php</button>
+  </div>
+  <textarea id="inputCode" placeholder="Paste your code here..."></textarea>
+  <pre><code id="outputCode" class="language-php"></code></pre>
+</div>
+</div>
+<!-- Prism.js for syntax highlighting -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-php.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+<!-- Beautify.js for code formatting -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.7/beautify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.7/beautify-html.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.7/beautify-css.min.js"></script>
+<script src="script.js"></script>
+<div id="footer"></div>
+</body>
+</html>
