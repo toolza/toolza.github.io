@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Calendar</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="../../tools/common.js" defer></script>
+  <link rel="stylesheet" href="../../tools/styles.css">
+</head>
+<body>
+<div id="header"></div>
+
+<div class="calendarwrap">
+<div class="calendar-container">
+  <div class="calendar-header">
+    <button id="prev-month">&lt;</button>
+    <h1 id="current-month-year">Month Year</h1>
+    <button id="next-month">&gt;</button>
+  </div>
+  <div class="calendar-controls">
+    <select id="month-select">
+      <option value="0">January</option>
+      <option value="1">February</option>
+      <option value="2">March</option>
+      <option value="3">April</option>
+      <option value="4">May</option>
+      <option value="5">June</option>
+      <option value="6">July</option>
+      <option value="7">August</option>
+      <option value="8">September</option>
+      <option value="9">October</option>
+      <option value="10">November</option>
+      <option value="11">December</option>
+    </select>
+    <input type="number" id="year-select" min="1900" max="2100" value="2023">
+    <button id="jump-to-date">Go</button>
+  </div>
+  <div class="calendar-grid">
+    <div class="day">Sun</div>
+    <div class="day">Mon</div>
+    <div class="day">Tue</div>
+    <div class="day">Wed</div>
+    <div class="day">Thu</div>
+    <div class="day">Fri</div>
+    <div class="day">Sat</div>
+    <!-- Days will be populated by JavaScript -->
+  </div>
+</div>
+</div>
+<script src="script.js"></script>
+<div id="footer"></div>
+</body>
+</html>
