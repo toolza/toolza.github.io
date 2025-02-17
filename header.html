@@ -1,22 +1,71 @@
+<!-- Navigation Bar -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
   <div class="container">
-    <a class="navbar-brand" href="index.html">Web Tools Hub</a>
+    <a class="navbar-brand" href="#">My Tools</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="navbarNav">
-      <ul class="navbar-nav ms-auto">
+      <ul class="navbar-nav">
+        <!-- Menu Items -->
         <li class="nav-item">
-          <a class="nav-link" href="index.html">Home</a>
+          <a class="nav-link" href="/tools#image-resizer">Image Resizer</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="about.html">About Us</a>
+          <a class="nav-link" href="/extract-text">Extract Text</a>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="beautifyDropdown" role="button" data-bs-toggle="dropdown">
+            Beautify
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="beautifyDropdown">
+            <li><a class="dropdown-item" href="/beautify-html">Beautify HTML</a></li>
+            <li><a class="dropdown-item" href="/beautify-json">Beautify JSON</a></li>
+            <li><a class="dropdown-item" href="/beautify-js">Beautify JS</a></li>
+            <li><a class="dropdown-item" href="/beautify-php">Beautify PHP</a></li>
+          </ul>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="geolocationDropdown" role="button" data-bs-toggle="dropdown">
+            Geolocation Tools
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="geolocationDropdown">
+            <li><a class="dropdown-item" href="/tools#city-from-latlon">Get City from Lat/Lon</a></li>
+            <li><a class="dropdown-item" href="/tools#latlon-from-address">Get Lat/Lon from Address</a></li>
+          </ul>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="countdownDropdown" role="button" data-bs-toggle="dropdown">
+            Countdown
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="countdownDropdown">
+            <li><a class="dropdown-item" href="/tools#stopwatch">Stopwatch</a></li>
+            <li><a class="dropdown-item" href="/timer">Timer</a></li>
+          </ul>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="contact.html">Contact Us</a>
+          <a class="nav-link" href="/calendar">Calendar</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="portfolio.html">Portfolio</a>
+          <a class="nav-link" href="/tools#colorpicker">Color Picker</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/cal">Calculator</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/tools#currency-converter">Currency Converter</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/words">Word Wonder</a>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="gamesDropdown" role="button" data-bs-toggle="dropdown">
+            Games
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="gamesDropdown">
+            <li><a class="dropdown-item" href="/catch">Catch Game</a></li>
+            <li><a class="dropdown-item" href="/mole">Whack-a-Mole</a></li>
+          </ul>
         </li>
       </ul>
     </div>
