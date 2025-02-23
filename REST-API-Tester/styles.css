@@ -1,0 +1,23 @@
+body {
+  background-color: #f8f9fa;
+}
+
+.card {
+  border: none;
+  border-radius: 10px;
+}
+
+.card-header {
+  border-radius: 10px 10px 0 0;
+}
+
+#response {
+  display: none; /* Hide response initially */
+}
+
+#responseOutput {
+  font-family: monospace;
+  font-size: 0.9rem;
+  white-space: pre-wrap; /* Preserve formatting */
+  word-wrap: break-word;
+}
