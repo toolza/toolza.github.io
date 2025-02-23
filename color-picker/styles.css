@@ -1,0 +1,32 @@
+body {
+  background-color: #f8f9fa;
+}
+
+.card {
+  border: none;
+  border-radius: 10px;
+}
+
+.card-header {
+  border-radius: 10px 10px 0 0;
+}
+
+#colorOutput {
+  margin-top: 20px;
+}
+
+#colorPicker {
+  width: 100px;
+  height: 100px;
+  margin: 0 auto;
+  cursor: pointer;
+}
+
+#hexCode, #rgbCode, #hslCode {
+  font-family: monospace;
+  color: #333;
+}
+
+.copy-btn {
+  margin-left: 10px;
+}
