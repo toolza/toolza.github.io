@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tic Tac Toe</title>
+  <link rel="stylesheet" href="../styles.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .game-container {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+      margin: 20px 0;
+    }
+
+    .cell {
+      aspect-ratio: 1;
+      border: 2px solid #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      cursor: pointer;
+      background-color: #fff;
+      transition: all 0.3s ease;
+    }
+
+    .cell.x {
+      background-color: #ffcccc;
+      color: #ff0000;
+    }
+
+    .cell.o {
+      background-color: #cce5ff;
+      color: #0066cc;
+    }
+
+    .cell-click {
+      animation: clickAnim 0.3s ease;
+    }
+
+    @keyframes clickAnim {
+      0% { transform: scale(1); }
+      50% { transform: scale(0.9); }
+      100% { transform: scale(1); }
+    }
+
+    .strike {
+      position: absolute;
+      background-color: rgba(255, 0, 0, 0.7);
+      animation: strikeAnim 0.5s ease forwards;
+    }
+
+    .strike-row { height: 4px; width: 100%; }
+    .strike-col { width: 4px; height: 100%; }
+    .strike-diagonal-1 { height: 4px; width: 141%; transform: rotate(45deg); }
+    .strike-diagonal-2 { height: 4px; width: 141%; transform: rotate(-45deg); }
+
+    @keyframes strikeAnim {
+      from { transform: scaleX(0); }
+      to { transform: scaleX(1); }
+    }
+  </style>
+</head>
+<body>
+<div id="header"></div>
+<div class="game-container">
+  <h1 class="text-center mb-4">Tic Tac Toe</h1>
+
+  <div class="d-flex justify-content-between mb-3">
+    <div>
+      <label>Play Mode:</label>
+      <select id="gameMode" class="form-select w-auto d-inline">
+        <option value="twoPlayer">Two Player</option>
+        <option value="computer">Vs Computer</option>
+      </select>
+    </div>
+    <div id="turnIndicator" class="fs-5">Player X's Turn</div>
+  </div>
+
+  <div class="board position-relative" id="board"></div>
+  <button class="btn btn-primary w-100" id="resetBtn">Reset Game</button>
+</div>
+<div id="footer"></div>
+<script src="../scripts/loadHeaderFooter.js"></script>
+<script>
+  const board = document.getElementById('board');
+  const resetBtn = document.getElementById('resetBtn');
+  const turnIndicator = document.getElementById('turnIndicator');
+  const gameMode = document.getElementById('gameMode');
+
+  let cells = [];
+  let currentPlayer = 'x';
+  let gameActive = true;
+  let isComputerMode = false;
+
+  const winningCombinations = [
+    [0,1,2], [3,4,5], [6,7,8], // Rows
+    [0,3,6], [1,4,7], [2,5,8], // Columns
+    [0,4,8], [2,4,6]           // Diagonals
+  ];
+
+  function initGame() {
+    board.innerHTML = '';
+    cells = [];
+    for (let i = 0; i < 9; i++) {
+      const cell = document.createElement('div');
+      cell.classList.add('cell');
+      cell.dataset.index = i;
+      cell.addEventListener('click', handleCellClick);
+      board.appendChild(cell);
+      cells.push(cell);
+    }
+  }
+
+  function handleCellClick(e) {
+    const cell = e.target;
+    if (!gameActive || cell.textContent) return;
+
+    cell.textContent = currentPlayer;
+    cell.classList.add(currentPlayer, 'cell-click');
+    setTimeout(() => cell.classList.remove('cell-click'), 300);
+
+    if (checkWin()) {
+      drawWinningLine();
+      turnIndicator.textContent = `Player ${currentPlayer.toUpperCase()} Wins!`;
+      gameActive = false;
+      return;
+    }
+    if (checkDraw()) {
+      turnIndicator.textContent = "It's a Draw!";
+      gameActive = false;
+      return;
+    }
+
+    currentPlayer = currentPlayer === 'x' ? 'o' : 'x';
+    turnIndicator.textContent = `Player ${currentPlayer.toUpperCase()}'s Turn`;
+
+    if (isComputerMode && currentPlayer === 'o' && gameActive) {
+      setTimeout(computerMove, 500);
+    }
+  }
+
+  function computerMove() {
+    const emptyCells = cells.filter(cell => !cell.textContent);
+    if (emptyCells.length > 0) {
+      const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+      randomCell.click();
+    }
+  }
+
+  function checkWin() {
+    return winningCombinations.some(combination => {
+      return combination.every(index => {
+        return cells[index].textContent === currentPlayer;
+      });
+    });
+  }
+
+  function checkDraw() {
+    return cells.every(cell => cell.textContent);
+  }
+
+  function drawWinningLine() {
+    const winningCombo = winningCombinations.find(combo => {
+      return combo.every(index => cells[index].textContent === currentPlayer);
+    });
+
+    const strike = document.createElement('div');
+    strike.classList.add('strike');
+    const boardRect = board.getBoundingClientRect();
+
+    if (winningCombo[0] === 0 && winningCombo[2] === 2) strike.classList.add('strike-row', 'top-0');
+    if (winningCombo[0] === 3 && winningCombo[2] === 5) strike.classList.add('strike-row', 'top-50');
+    if (winningCombo[0] === 6 && winningCombo[2] === 8) strike.classList.add('strike-row', 'top-100');
+    if (winningCombo[0] === 0 && winningCombo[2] === 6) strike.classList.add('strike-col', 'start-0');
+    if (winningCombo[0] === 1 && winningCombo[2] === 7) strike.classList.add('strike-col', 'start-50');
+    if (winningCombo[0] === 2 && winningCombo[2] === 8) strike.classList.add('strike-col', 'start-100');
+    if (winningCombo[0] === 0 && winningCombo[2] === 8) strike.classList.add('strike-diagonal-1');
+    if (winningCombo[0] === 2 && winningCombo[2] === 6) strike.classList.add('strike-diagonal-2');
+
+    board.appendChild(strike);
+  }
+
+  function resetGame() {
+    currentPlayer = 'x';
+    gameActive = true;
+    turnIndicator.textContent = "Player X's Turn";
+    initGame();
+  }
+
+  gameMode.addEventListener('change', (e) => {
+    isComputerMode = e.target.value === 'computer';
+    resetGame();
+  });
+
+  resetBtn.addEventListener('click', resetGame);
+  initGame();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
