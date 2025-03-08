@@ -1,0 +1,34 @@
+body {
+  font-family: Arial, sans-serif;
+}
+
+#quiz-container, #result-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+#answers .btn {
+  width: 100%;
+}
+
+.table {
+  margin-top: 20px;
+}
+
+.text-success {
+  color: green;
+}
+
+.text-danger {
+  color: red;
+}
+
+.btn-success {
+  background-color: #28a745 !important; /* Green for correct answer */
+  border-color: #28a745 !important;
+}
+
+.btn-danger {
+  background-color: #dc3545 !important; /* Red for wrong answer */
+  border-color: #dc3545 !important;
+}
