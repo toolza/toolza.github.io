@@ -253,7 +253,7 @@ const questions = [
 
 let currentQuestionIndex = 0;
 let score = 0;
-let timeLeft = 10;
+let timeLeft = 30;
 let timer;
 let userAnswers = new Array(questions.length).fill(null); // Track user answers
 let shuffledQuestions = []; // Store shuffled questions
@@ -326,7 +326,7 @@ function loadQuestion() {
 
   // Reset timer
   clearInterval(timer);
-  timeLeft = 10;
+  timeLeft = 30;
   timerElement.textContent = timeLeft;
   startTimer();
 
