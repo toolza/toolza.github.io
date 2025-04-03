@@ -58,11 +58,12 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- Custom JavaScript -->
     <script>
-        let map, polyline, watchId, coordinates = [], totalDistance = 0;
+        let map, polyline, watchId, coordinates = [], totalDistance = 0, lastPos = null;
         const travelModeSelect = document.getElementById('travelMode');
         const startButton = document.getElementById('startTracking');
         const stopButton = document.getElementById('stopTracking');
         const tableBody = document.getElementById('locationTableBody');
+        const MIN_DISTANCE_THRESHOLD = 0.0001; // Approx 10-11 meters in lat/lng degrees
 
         // Initialize the map
         function initMap() {
@@ -90,6 +91,14 @@
             return R * c; // Distance in km
         }
 
+        // Check if position has changed significantly
+        function hasPositionChanged(newPos, oldPos) {
+            if (!oldPos) return true; // First position always counts
+            const latDiff = Math.abs(newPos[0] - oldPos[0]);
+            const lngDiff = Math.abs(newPos[1] - oldPos[1]);
+            return latDiff > MIN_DISTANCE_THRESHOLD || lngDiff > MIN_DISTANCE_THRESHOLD;
+        }
+
         // Format time
         function formatTime(timestamp) {
             return new Date(timestamp).toLocaleTimeString();
@@ -112,6 +121,7 @@
             if (navigator.geolocation) {
                 coordinates = [];
                 totalDistance = 0;
+                lastPos = null;
                 tableBody.innerHTML = ''; // Clear table
                 polyline.setLatLngs(coordinates);
 
@@ -120,17 +130,21 @@
                         const pos = [position.coords.latitude, position.coords.longitude];
                         const timestamp = position.timestamp;
 
-                        if (coordinates.length > 0) {
-                            const lastPos = coordinates[coordinates.length - 1];
-                            const distance = calculateDistance(lastPos[0], lastPos[1], pos[0], pos[1]);
-                            totalDistance += distance;
-                            updateTable(pos, totalDistance, timestamp);
-                        } else {
-                            updateTable(pos, 0, timestamp); // First point, no distance yet
+                        // Only proceed if position has changed
+                        if (hasPositionChanged(pos, lastPos)) {
+                            if (coordinates.length > 0) {
+                                const distance = calculateDistance(lastPos[0], lastPos[1], pos[0], pos[1]);
+                                totalDistance += distance;
+                                updateTable(pos, totalDistance, timestamp);
+                            } else {
+                                updateTable(pos, 0, timestamp); // First point
+                            }
+
+                            coordinates.push(pos);
+                            polyline.setLatLngs(coordinates);
+                            lastPos = pos;
                         }
 
-                        coordinates.push(pos);
-                        polyline.setLatLngs(coordinates);
                         map.setView(pos, 15); // Center the map on the current position
                     },
                     (error) => {
