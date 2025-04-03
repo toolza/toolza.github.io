@@ -1,106 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Route Tracker (OpenStreetMap)</title>
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- Custom CSS -->
-  <style>
-    #map {
-      height: 500px;
-      width: 100%;
-    }
-    body {
-      padding: 20px;
-    }
-    .controls {
-      margin-bottom: 20px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route Tracker (OpenStreetMap)</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Custom CSS -->
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+        body {
+            padding: 20px;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        #locationTable {
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
-<div class="container">
-  <h1 class="text-center mb-4">Route Tracker</h1>
-  <div class="controls">
-    <label for="travelMode" class="form-label">Select Travel Mode:</label>
-    <select id="travelMode" class="form-select w-25">
-      <option value="walking">Walking</option>
-      <option value="driving">Driving</option>
-      <option value="bicycling">Bicycling</option>
-    </select>
-    <button id="startTracking" class="btn btn-primary mt-2">Start Tracking</button>
-    <button id="stopTracking" class="btn btn-danger mt-2" disabled>Stop Tracking</button>
-  </div>
-  <div id="map"></div>
-</div>
+    <div class="container">
+        <h1 class="text-center mb-4">Route Tracker</h1>
+        <div class="controls">
+            <label for="travelMode" class="form-label">Select Travel Mode:</label>
+            <select id="travelMode" class="form-select w-25">
+                <option value="walking">Walking</option>
+                <option value="driving">Driving</option>
+                <option value="bicycling">Bicycling</option>
+            </select>
+            <button id="startTracking" class="btn btn-primary mt-2">Start Tracking</button>
+            <button id="stopTracking" class="btn btn-danger mt-2" disabled>Stop Tracking</button>
+        </div>
+        <div id="map"></div>
+        <table id="locationTable" class="table table-striped">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Location (Lat, Lng)</th>
+                    <th>Distance (km)</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody id="locationTableBody"></tbody>
+        </table>
+    </div>
 
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<!-- Custom JavaScript -->
-<script>
-  let map, polyline, watchId, coordinates = [];
-  const travelModeSelect = document.getElementById('travelMode');
-  const startButton = document.getElementById('startTracking');
-  const stopButton = document.getElementById('stopTracking');
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Custom JavaScript -->
+    <script>
+        let map, polyline, watchId, coordinates = [], totalDistance = 0;
+        const travelModeSelect = document.getElementById('travelMode');
+        const startButton = document.getElementById('startTracking');
+        const stopButton = document.getElementById('stopTracking');
+        const tableBody = document.getElementById('locationTableBody');
 
-  // Initialize the map
-  function initMap() {
-    map = L.map('map').setView([51.505, -0.09], 13); // Default center (London)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 19
-    }).addTo(map);
+        // Initialize the map
+        function initMap() {
+            map = L.map('map').setView([51.505, -0.09], 13); // Default center (London)
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(map);
 
-    polyline = L.polyline([], { color: 'red', weight: 3 }).addTo(map);
+            polyline = L.polyline([], { color: 'red', weight: 3 }).addTo(map);
 
-    startButton.addEventListener('click', startTracking);
-    stopButton.addEventListener('click', stopTracking);
-  }
+            startButton.addEventListener('click', startTracking);
+            stopButton.addEventListener('click', stopTracking);
+        }
 
-  // Start tracking the user's location
-  function startTracking() {
-    if (navigator.geolocation) {
-      coordinates = [];
-      polyline.setLatLngs(coordinates);
+        // Calculate distance between two points (Haversine formula)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth's radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; // Distance in km
+        }
 
-      watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          const pos = [position.coords.latitude, position.coords.longitude];
-          coordinates.push(pos);
-          polyline.setLatLngs(coordinates);
-          map.setView(pos, 15); // Center the map on the current position
-        },
-        (error) => {
-          alert('Error: ' + error.message);
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-      );
+        // Format time
+        function formatTime(timestamp) {
+            return new Date(timestamp).toLocaleTimeString();
+        }
 
-      startButton.disabled = true;
-      stopButton.disabled = false;
-    } else {
-      alert('Geolocation is not supported by this browser.');
-    }
-  }
+        // Update the table
+        function updateTable(pos, distance, timestamp) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${coordinates.length}</td>
+                <td>${pos[0].toFixed(4)}, ${pos[1].toFixed(4)}</td>
+                <td>${distance.toFixed(2)}</td>
+                <td>${formatTime(timestamp)}</td>
+            `;
+            tableBody.appendChild(row);
+        }
 
-  // Stop tracking
-  function stopTracking() {
-    if (watchId) {
-      navigator.geolocation.clearWatch(watchId);
-      watchId = null;
-      startButton.disabled = false;
-      stopButton.disabled = true;
-    }
-  }
+        // Start tracking the user's location
+        function startTracking() {
+            if (navigator.geolocation) {
+                coordinates = [];
+                totalDistance = 0;
+                tableBody.innerHTML = ''; // Clear table
+                polyline.setLatLngs(coordinates);
 
-  // Initialize the map when the page loads
-  initMap();
-</script>
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        const pos = [position.coords.latitude, position.coords.longitude];
+                        const timestamp = position.timestamp;
+
+                        if (coordinates.length > 0) {
+                            const lastPos = coordinates[coordinates.length - 1];
+                            const distance = calculateDistance(lastPos[0], lastPos[1], pos[0], pos[1]);
+                            totalDistance += distance;
+                            updateTable(pos, totalDistance, timestamp);
+                        } else {
+                            updateTable(pos, 0, timestamp); // First point, no distance yet
+                        }
+
+                        coordinates.push(pos);
+                        polyline.setLatLngs(coordinates);
+                        map.setView(pos, 15); // Center the map on the current position
+                    },
+                    (error) => {
+                        alert('Error: ' + error.message);
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+
+                startButton.disabled = true;
+                stopButton.disabled = false;
+            } else {
+                alert('Geolocation is not supported by this browser.');
+            }
+        }
+
+        // Stop tracking
+        function stopTracking() {
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+                startButton.disabled = false;
+                stopButton.disabled = true;
+            }
+        }
+
+        // Initialize the map when the page loads
+        initMap();
+    </script>
 </body>
 </html>
