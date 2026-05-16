@@ -233,6 +233,7 @@
   .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .btn.primary:hover { background: #8f72fc; }
   .btn .icon { font-size: 1rem; }
+  .file-input { display: none; }
 
   /* Best score */
   .best-scores {
@@ -510,6 +511,8 @@
       <button class="btn primary" id="btn-new"><span class="icon">✦</span> New Puzzle</button>
       <button class="btn" id="btn-shuffle"><span class="icon">⟳</span> Shuffle Again</button>
       <button class="btn" id="btn-peek"><span class="icon">👁</span> Peek (+10 moves)</button>
+      <button class="btn" id="btn-upload"><span class="icon">▣</span> Upload Image</button>
+      <input class="file-input" id="image-upload" type="file" accept="image/*">
     </div>
 
     <!-- Best scores -->
@@ -571,32 +574,31 @@ const CONFIG = {
   peekPenalty     : 10,
   winDelay        : 3000,
   imageSize       : 600,          // px for slicing
-  apiModel        : 'claude-sonnet-4-20250514',
-  imageSeeds      : [],           // track used seeds
+  imageHistory    : [],           // track recently used preset images
 };
 
-// Curated themes for AI-generated prompts (used when calling Anthropic API)
-const THEMES = [
-  { title: "Enchanted Forest",       prompt: "a magical glowing forest with fireflies and ancient trees" },
-  { title: "Futuristic City",        prompt: "a neon-lit cyberpunk city at night with flying cars" },
-  { title: "Underwater Kingdom",     prompt: "a vibrant coral reef with tropical fish and sea turtles" },
-  { title: "Snowy Mountain Peak",    prompt: "a dramatic snow-capped mountain at golden hour" },
-  { title: "Cherry Blossom Garden",  prompt: "a serene Japanese garden with pink cherry blossoms" },
-  { title: "Space Nebula",           prompt: "a colorful cosmic nebula with stars and galaxies" },
-  { title: "Desert Sunset",          prompt: "dramatic sand dunes glowing at sunset in golden light" },
-  { title: "Ancient Ruins",          prompt: "ivy-covered ancient temple ruins in a jungle" },
-  { title: "Northern Lights",        prompt: "aurora borealis over a frozen lake reflecting green light" },
-  { title: "Tropical Paradise",      prompt: "a secluded tropical beach with turquoise water and palm trees" },
-  { title: "Misty Waterfall",        prompt: "a dramatic waterfall surrounded by mossy rocks and mist" },
-  { title: "Autumn Forest",          prompt: "a forest path covered in colorful autumn leaves" },
-  { title: "Volcanic Landscape",     prompt: "dramatic volcanic eruption with glowing lava flows at night" },
-  { title: "Floating Islands",       prompt: "fantastical floating islands with waterfalls in the clouds" },
-  { title: "Crystal Cave",           prompt: "a cave filled with enormous glowing purple crystals" },
-  { title: "Sunflower Field",        prompt: "a vast field of bright yellow sunflowers under blue sky" },
-  { title: "Old Lighthouse",         prompt: "a dramatic lighthouse on rocky cliffs in stormy seas" },
-  { title: "Bamboo Forest",          prompt: "a peaceful bamboo forest with dappled sunlight" },
-  { title: "Lavender Valley",        prompt: "rolling hills covered in purple lavender at dusk" },
-  { title: "Canyon at Dawn",         prompt: "grand canyon walls lit by warm orange sunrise light" },
+// Curated image sources. No API key or model call is needed.
+const PRESET_IMAGES = [
+  { title: "Enchanted Forest",      colors: ["#102a1c", "#2f8f5b", "#c7f27c"] },
+  { title: "Futuristic City",       colors: ["#101024", "#2d68ff", "#ff4fd8"] },
+  { title: "Underwater Kingdom",    colors: ["#053047", "#16a6b6", "#f9d371"] },
+  { title: "Snowy Mountain Peak",   colors: ["#1d2b3a", "#9fc6df", "#ffffff"] },
+  { title: "Cherry Blossom Garden", colors: ["#26351f", "#f6a7c6", "#fff0f5"] },
+  { title: "Space Nebula",          colors: ["#09051f", "#7b3ff2", "#20d7ff"] },
+  { title: "Desert Sunset",         colors: ["#532f1a", "#f17c2e", "#ffd166"] },
+  { title: "Ancient Ruins",         colors: ["#252114", "#80744e", "#5fbf74"] },
+  { title: "Northern Lights",       colors: ["#061327", "#25d59a", "#b8ffef"] },
+  { title: "Tropical Paradise",     colors: ["#063a45", "#1fc8b6", "#ffe28a"] },
+  { title: "Misty Waterfall",       colors: ["#123137", "#6db8c4", "#e8fbff"] },
+  { title: "Autumn Forest",         colors: ["#2d1b12", "#c9552c", "#f7c948"] },
+  { title: "Volcanic Landscape",    colors: ["#170d0d", "#d42c1f", "#ffb347"] },
+  { title: "Floating Islands",      colors: ["#16213e", "#64dfdf", "#80ed99"] },
+  { title: "Crystal Cave",          colors: ["#1b1235", "#8d5cf6", "#bff7ff"] },
+  { title: "Sunflower Field",       colors: ["#17351b", "#f7c531", "#87ceeb"] },
+  { title: "Old Lighthouse",        colors: ["#152238", "#d7dde8", "#e05252"] },
+  { title: "Bamboo Forest",         colors: ["#12251a", "#57a773", "#d8f3dc"] },
+  { title: "Lavender Valley",       colors: ["#2c2544", "#a77bd9", "#f3d9ff"] },
+  { title: "Canyon at Dawn",        colors: ["#352016", "#d46a33", "#ffe0a3"] },
 ];
 
 /* ============================================================
@@ -611,72 +613,94 @@ const STATE = {
   seconds     : 0,
   timerHandle : null,
   puzzleNum   : 1,
-  currentSeed : null,
-  currentTheme: null,
+  currentImage: null,
   solved      : false,
   imageURL    : null,
+  uploadedImage: null,
 };
 
 /* ============================================================
    3. IMAGE LOADER
 ============================================================ */
-function getUnusedSeed() {
-  let seed;
-  do { seed = Math.floor(Math.random() * 9000) + 1000; }
-  while (CONFIG.imageSeeds.includes(seed));
-  CONFIG.imageSeeds.push(seed);
-  if (CONFIG.imageSeeds.length > 50) CONFIG.imageSeeds.shift();
-  return seed;
+function pickPresetImage() {
+  let image;
+  do { image = PRESET_IMAGES[Math.floor(Math.random() * PRESET_IMAGES.length)]; }
+  while (CONFIG.imageHistory.includes(image.title) && CONFIG.imageHistory.length < PRESET_IMAGES.length);
+
+  CONFIG.imageHistory.push(image.title);
+  if (CONFIG.imageHistory.length > 8) CONFIG.imageHistory.shift();
+  return { title: image.title, url: createPresetImageURL(image) };
 }
 
-function pickTheme() {
-  const used = STATE.currentTheme;
-  let t;
-  do { t = THEMES[Math.floor(Math.random() * THEMES.length)]; }
-  while (t === used);
-  return t;
+function pickPuzzleImage() {
+  return STATE.uploadedImage || pickPresetImage();
 }
 
-// Try Anthropic API first for theme; fallback to local list
-async function fetchThemeTitle() {
-  const fallback = pickTheme();
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-calls': 'true',
-      },
-      body: JSON.stringify({
-        model: CONFIG.apiModel,
-        max_tokens: 80,
-        messages: [{
-          role: 'user',
-          content: 'Give me ONE creative, poetic, short title (3-5 words) for a nature or fantasy landscape photo puzzle. Reply with ONLY the title, no punctuation, no quotes, no explanation.'
-        }]
-      })
-    });
-    if (!res.ok) throw new Error('API error');
-    const data = await res.json();
-    const title = data.content?.[0]?.text?.trim();
-    if (title && title.length > 2) return { title, prompt: title };
-  } catch (_) { /* fall through */ }
-  return fallback;
+function createPresetImageURL({ title, colors }) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const size = CONFIG.imageSize;
+  canvas.width = size;
+  canvas.height = size;
+
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, colors[0]);
+  grad.addColorStop(0.55, colors[1]);
+  grad.addColorStop(1, colors[2]);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+
+  let seed = [...title].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const rand = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+
+  for (let i = 0; i < 38; i++) {
+    const x = rand() * size;
+    const y = rand() * size;
+    const radius = 28 + rand() * 110;
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    glow.addColorStop(0, `${colors[2]}cc`);
+    glow.addColorStop(1, `${colors[1]}00`);
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.globalAlpha = 0.8;
+  ctx.fillStyle = colors[0];
+  for (let i = 0; i < 9; i++) {
+    const y = size * (0.45 + i * 0.06);
+    ctx.beginPath();
+    ctx.moveTo(0, size);
+    for (let x = 0; x <= size; x += 60) {
+      ctx.lineTo(x, y + Math.sin((x / 60) + i) * (24 + i * 4));
+    }
+    ctx.lineTo(size, size);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  return canvas.toDataURL('image/jpeg', 0.92);
 }
 
-function buildImageURL(seed) {
-  return `https://picsum.photos/${CONFIG.imageSize}/${CONFIG.imageSize}?random=${seed}`;
+function getDisplayURL(url) {
+  if (!url || url.startsWith('data:') || url.startsWith('blob:')) return url;
+  return `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
 }
 
 async function loadImage(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    if (!url.startsWith('data:') && !url.startsWith('blob:')) {
+      img.crossOrigin = 'anonymous';
+    }
     img.onload  = () => resolve(img);
     img.onerror = () => reject(new Error('Image load failed'));
-    // Use corsproxy.io as CORS proxy
-    img.src = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
+    img.src = getDisplayURL(url);
   });
 }
 
@@ -890,7 +914,7 @@ function handlePeek() {
   if (STATE.solved) return;
   const peekEl = $('peek-overlay');
   if (!STATE.imageURL) return;
-  peekEl.style.backgroundImage = `url('https://corsproxy.io/?url=${encodeURIComponent(STATE.imageURL)}')`;
+  peekEl.style.backgroundImage = `url('${getDisplayURL(STATE.imageURL)}')`;
   peekEl.classList.add('show');
   STATE.moves += CONFIG.peekPenalty;
   updateStats();
@@ -1050,32 +1074,25 @@ async function startNewPuzzle() {
   stopConfetti();
   $('win-overlay').classList.remove('show');
 
-  showLoading('Generating theme…');
+  showLoading('Choosing image…');
   setTileSize();
   renderBoard(); // blank board while loading
 
-  // 1. Get theme
-  let theme;
-  try {
-    theme = await fetchThemeTitle();
-  } catch (_) {
-    theme = pickTheme();
-  }
-  STATE.currentTheme = theme;
-  $('theme-title').textContent = theme.title;
+  // 1. Choose image from presets or the uploaded file.
+  const puzzleImage = pickPuzzleImage();
+  STATE.currentImage = puzzleImage;
+  $('theme-title').textContent = puzzleImage.title;
   $('puzzle-num').textContent  = STATE.puzzleNum;
 
   // 2. Load image
   showLoading('Loading image…');
-  const seed = getUnusedSeed();
-  STATE.currentSeed = seed;
-  const imageURL = buildImageURL(seed);
+  const imageURL = puzzleImage.url;
   STATE.imageURL = imageURL;
 
   // Update preview
   const previewImg = $('preview-img');
   previewImg.classList.remove('loaded');
-  previewImg.src = `https://corsproxy.io/?url=${encodeURIComponent(imageURL)}`;
+  previewImg.src = getDisplayURL(imageURL);
   previewImg.onload = () => previewImg.classList.add('loaded');
 
   let imgEl;
@@ -1093,6 +1110,7 @@ async function startNewPuzzle() {
       });
     } catch (_) {
       showLoading('Retrying with new image…');
+      if (STATE.uploadedImage?.url === imageURL) STATE.uploadedImage = null;
       setTimeout(startNewPuzzle, 1000);
       return;
     }
@@ -1156,6 +1174,21 @@ function reshuffleCurrent() {
   });
 }
 
+function handleImageUpload(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    STATE.uploadedImage = {
+      title: file.name.replace(/\.[^.]+$/, '') || 'Uploaded Image',
+      url: reader.result,
+    };
+    STATE.puzzleNum++;
+    startNewPuzzle();
+  };
+  reader.readAsDataURL(file);
+}
+
 /* ============================================================
    8. INIT
 ============================================================ */
@@ -1174,10 +1207,16 @@ function init() {
   // Action buttons
   $('btn-new').addEventListener('click', () => {
     STATE.puzzleNum++;
+    STATE.uploadedImage = null;
     startNewPuzzle();
   });
   $('btn-shuffle').addEventListener('click', reshuffleCurrent);
   $('btn-peek').addEventListener('click', handlePeek);
+  $('btn-upload').addEventListener('click', () => $('image-upload').click());
+  $('image-upload').addEventListener('change', event => {
+    handleImageUpload(event.target.files?.[0]);
+    event.target.value = '';
+  });
 
   // Responsive resize
   window.addEventListener('resize', () => {
