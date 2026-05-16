@@ -511,6 +511,7 @@
 
     <!-- Action buttons -->
     <div class="action-btns">
+      <button class="btn primary" id="btn-play"><span class="icon">▶</span> Start</button>
       <button class="btn primary" id="btn-new"><span class="icon">✦</span> New Puzzle</button>
       <button class="btn" id="btn-shuffle"><span class="icon">⟳</span> Shuffle Again</button>
       <button class="btn" id="btn-peek"><span class="icon">👁</span> Peek (+10 moves)</button>
@@ -614,6 +615,7 @@ const STATE = {
   selectedIdx : null,
   drag        : null,
   suppressClick: false,
+  paused      : true,
   moves       : 0,
   seconds     : 0,
   timerHandle : null,
@@ -648,46 +650,185 @@ function createPresetImageURL({ title, colors }) {
   canvas.width = size;
   canvas.height = size;
 
-  const grad = ctx.createLinearGradient(0, 0, size, size);
-  grad.addColorStop(0, colors[0]);
-  grad.addColorStop(0.55, colors[1]);
-  grad.addColorStop(1, colors[2]);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, size, size);
-
   let seed = [...title].reduce((sum, char) => sum + char.charCodeAt(0), 0);
   const rand = () => {
     seed = (seed * 9301 + 49297) % 233280;
     return seed / 233280;
   };
 
-  for (let i = 0; i < 38; i++) {
-    const x = rand() * size;
-    const y = rand() * size;
-    const radius = 28 + rand() * 110;
-    const glow = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    glow.addColorStop(0, `${colors[2]}cc`);
-    glow.addColorStop(1, `${colors[1]}00`);
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  const bg = ctx.createLinearGradient(0, 0, size, size);
+  bg.addColorStop(0, colors[0]);
+  bg.addColorStop(0.48, colors[1]);
+  bg.addColorStop(1, colors[2]);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, size, size);
 
-  ctx.globalAlpha = 0.8;
-  ctx.fillStyle = colors[0];
-  for (let i = 0; i < 9; i++) {
-    const y = size * (0.45 + i * 0.06);
+  const circle = (x, y, r, fill) => {
+    ctx.fillStyle = fill;
     ctx.beginPath();
-    ctx.moveTo(0, size);
-    for (let x = 0; x <= size; x += 60) {
-      ctx.lineTo(x, y + Math.sin((x / 60) + i) * (24 + i * 4));
-    }
-    ctx.lineTo(size, size);
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  const rect = (x, y, w, h, fill) => {
+    ctx.fillStyle = fill;
+    ctx.fillRect(x, y, w, h);
+  };
+  const poly = (points, fill) => {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    points.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
     ctx.closePath();
     ctx.fill();
+  };
+  const line = (points, stroke, width = 4) => {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    points.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+    ctx.stroke();
+  };
+  const scatter = (count, draw) => {
+    for (let i = 0; i < count; i++) draw(rand(), rand(), i);
+  };
+  const mountains = () => {
+    poly([[0, 430], [120, 270], [230, 410], [360, 245], [600, 430], [600, 600], [0, 600]], '#13233bcc');
+    poly([[0, 500], [170, 355], [310, 430], [455, 335], [600, 455], [600, 600], [0, 600]], '#0d1b2fcc');
+  };
+
+  scatter(70, (rx, ry) => circle(rx * size, ry * size * 0.7, 1 + rand() * 3, 'rgba(255,255,255,0.45)'));
+
+  switch (title) {
+    case 'Futuristic City':
+      scatter(9, (rx) => rect(rx * 560, 210 + rand() * 110, 34 + rand() * 42, 390, '#10152fdd'));
+      scatter(48, (rx, ry) => rect(20 + rx * 560, 245 + ry * 280, 7, 13, rand() > 0.5 ? '#20d7ff' : '#ff4fd8'));
+      line([[80, 520], [520, 360]], '#ff4fd8', 8);
+      line([[40, 465], [560, 560]], '#20d7ff', 5);
+      break;
+    case 'Underwater Kingdom':
+      scatter(34, (rx, ry) => circle(30 + rx * 540, 70 + ry * 420, 5 + rand() * 22, 'rgba(180,245,255,0.18)'));
+      scatter(18, (rx) => {
+        const x = 25 + rx * 550, y = 355 + rand() * 190;
+        line([[x, y + 80], [x + 18, y], [x + 42, y + 82]], '#ff8a80', 8);
+        circle(x + 70, y + 28, 16, '#ffd166');
+        poly([[x + 55, y + 28], [x + 92, y + 10], [x + 92, y + 46]], '#ffd166');
+      });
+      break;
+    case 'Cherry Blossom Garden':
+      line([[300, 600], [320, 430], [275, 290], [350, 165]], '#3b2418', 18);
+      scatter(90, (rx, ry) => circle(70 + rx * 470, 45 + ry * 315, 9 + rand() * 16, rand() > 0.35 ? '#ffb7d5' : '#fff2f7'));
+      line([[60, 505], [540, 470]], '#32502c', 9);
+      break;
+    case 'Space Nebula':
+      scatter(130, (rx, ry) => circle(rx * size, ry * size, 1 + rand() * 2.5, '#ffffff'));
+      circle(180, 190, 72, '#8d5cf6aa');
+      circle(430, 340, 105, '#20d7ffaa');
+      line([[40, 420], [180, 360], [330, 390], [560, 290]], '#ff4fd8aa', 18);
+      break;
+    case 'Ancient Ruins':
+      scatter(7, (rx) => {
+        const x = 60 + rx * 430;
+        rect(x, 245 + rand() * 70, 44, 290, '#d1c59a');
+        rect(x - 12, 230 + rand() * 60, 68, 18, '#f1e5b5');
+      });
+      scatter(22, (rx, ry) => line([[rx * 600, 240 + ry * 250], [rx * 600 + 20, 330 + ry * 210]], '#59bf74', 5));
+      break;
+    case 'Northern Lights':
+      for (let i = 0; i < 7; i++) {
+        line([[0, 110 + i * 24], [120, 70 + Math.sin(i) * 30], [260, 120 + i * 15], [430, 55 + i * 28], [600, 95 + i * 20]], i % 2 ? '#8dffcfaa' : '#32d6ffaa', 18);
+      }
+      mountains();
+      break;
+    case 'Tropical Paradise':
+      rect(0, 390, 600, 210, '#ffe28a');
+      circle(500, 100, 52, '#fff2a8');
+      line([[135, 450], [180, 250]], '#6b3f22', 17);
+      scatter(16, (_, __, i) => line([[180, 255], [180 + Math.cos(i) * 120, 255 + Math.sin(i) * 70]], '#188b57', 12));
+      line([[0, 370], [140, 350], [300, 380], [600, 345]], '#9ef7e7', 18);
+      break;
+    case 'Misty Waterfall':
+      mountains();
+      rect(260, 145, 86, 455, '#e8fbffee');
+      scatter(55, (rx, ry) => circle(210 + rx * 190, 300 + ry * 260, 6 + rand() * 18, 'rgba(255,255,255,0.38)'));
+      break;
+    case 'Autumn Forest':
+      scatter(42, (rx) => {
+        const x = rx * 600;
+        line([[x, 600], [x + rand() * 40 - 20, 230 + rand() * 160]], '#2d1b12', 9);
+        circle(x, 230 + rand() * 220, 28 + rand() * 38, rand() > 0.45 ? '#d95d39' : '#f7c948');
+      });
+      break;
+    case 'Volcanic Landscape':
+      mountains();
+      poly([[205, 455], [300, 155], [410, 455]], '#241313');
+      poly([[272, 245], [300, 155], [335, 245]], '#ffb347');
+      line([[300, 245], [255, 600]], '#ff3b24', 13);
+      scatter(38, (rx, ry) => circle(rx * 600, ry * 330, 3 + rand() * 7, '#ffb347'));
+      break;
+    case 'Floating Islands':
+      scatter(8, (rx, ry) => {
+        const x = 70 + rx * 460, y = 130 + ry * 300;
+        poly([[x - 70, y], [x + 70, y], [x + 25, y + 70], [x - 25, y + 70]], '#203a35');
+        rect(x - 58, y - 18, 116, 22, '#80ed99');
+        line([[x, y + 60], [x, y + 180]], '#64dfdf99', 5);
+      });
+      break;
+    case 'Crystal Cave':
+      scatter(24, (rx) => {
+        const x = 25 + rx * 550, h = 70 + rand() * 170;
+        poly([[x - 22, 560], [x, 560 - h], [x + 22, 560]], rand() > 0.5 ? '#bff7ffcc' : '#8d5cf6cc');
+      });
+      scatter(36, (rx, ry) => circle(rx * 600, ry * 500, 4 + rand() * 12, '#bff7ffaa'));
+      break;
+    case 'Sunflower Field':
+      rect(0, 250, 600, 350, '#24502b');
+      scatter(34, (rx, ry) => {
+        const x = 25 + rx * 550, y = 285 + ry * 285;
+        line([[x, y + 70], [x, y + 12]], '#286b36', 5);
+        scatter(10, (_, __, i) => circle(x + Math.cos(i) * 18, y + Math.sin(i) * 18, 10, '#f7c531'));
+        circle(x, y, 12, '#5a3515');
+      });
+      break;
+    case 'Old Lighthouse':
+      mountains();
+      rect(265, 160, 70, 330, '#f5f2df');
+      rect(252, 130, 96, 35, '#e05252');
+      circle(300, 125, 22, '#ffe28a');
+      line([[300, 125], [75, 205]], '#ffe28a88', 20);
+      line([[300, 125], [525, 205]], '#ffe28a88', 20);
+      break;
+    case 'Bamboo Forest':
+      scatter(30, (rx) => {
+        const x = rx * 600;
+        line([[x, 600], [x + rand() * 80 - 40, 0]], '#69b578', 10);
+        for (let y = 60; y < 580; y += 65) line([[x - 35, y], [x + 35, y - 30]], '#d8f3dc', 5);
+      });
+      break;
+    case 'Lavender Valley':
+      for (let i = 0; i < 18; i++) line([[i * 40 - 80, 600], [260 + i * 12, 250]], i % 2 ? '#a77bd9' : '#f3d9ff', 10);
+      scatter(140, (rx, ry) => circle(rx * 600, 300 + ry * 280, 3 + rand() * 7, '#c49bef'));
+      break;
+    case 'Canyon at Dawn':
+      circle(500, 115, 48, '#ffe0a3');
+      for (let i = 0; i < 6; i++) poly([[0, 305 + i * 42], [150, 250 + i * 30], [305, 320 + i * 24], [600, 235 + i * 36], [600, 600], [0, 600]], i % 2 ? '#8d3f24cc' : '#d46a33cc');
+      break;
+    case 'Enchanted Forest':
+      scatter(46, (rx) => {
+        const x = rx * 600;
+        line([[x, 600], [x + rand() * 60 - 30, 160 + rand() * 220]], '#16351f', 11);
+        circle(x, 180 + rand() * 245, 34 + rand() * 46, '#2f8f5bcc');
+      });
+      scatter(55, (rx, ry) => circle(rx * 600, 90 + ry * 430, 3 + rand() * 5, '#c7f27c'));
+      break;
+    case 'Snowy Mountain Peak':
+    default:
+      mountains();
+      poly([[95, 420], [260, 105], [420, 420]], '#c9dce9');
+      poly([[260, 105], [315, 245], [235, 220]], '#ffffff');
+      scatter(40, (rx, ry) => circle(rx * 600, ry * 370, 2 + rand() * 4, '#ffffffcc'));
+      break;
   }
-  ctx.globalAlpha = 1;
 
   return canvas.toDataURL('image/jpeg', 0.92);
 }
@@ -863,6 +1004,14 @@ function updateStats() {
   $('timer-val').textContent = formatTime(STATE.seconds);
 }
 
+function updatePlayButton() {
+  const btn = $('btn-play');
+  if (!btn) return;
+  btn.innerHTML = STATE.paused
+    ? '<span class="icon">▶</span> Start'
+    : '<span class="icon">⏸</span> Pause';
+}
+
 function formatTime(s) {
   const m = Math.floor(s / 60);
   const sec = s % 60;
@@ -881,7 +1030,7 @@ function updateBestScores() {
    6. EVENTS — click handler & peek
 ============================================================ */
 function handleTileClick(pos) {
-  if (STATE.solved) return;
+  if (STATE.solved || STATE.paused) return;
   if (STATE.suppressClick) {
     STATE.suppressClick = false;
     return;
@@ -921,7 +1070,7 @@ function performTileSwap(from, to) {
 }
 
 function handleTilePointerDown(event, pos) {
-  if (STATE.solved || event.button > 0) return;
+  if (STATE.solved || STATE.paused || event.button > 0) return;
 
   const el = event.currentTarget;
   STATE.drag = {
@@ -983,7 +1132,7 @@ function cleanupTileDrag(el, pointerId) {
 }
 
 function handleNativeDragStart(event, pos) {
-  if (STATE.solved) {
+  if (STATE.solved || STATE.paused) {
     event.preventDefault();
     return;
   }
@@ -1043,7 +1192,7 @@ function animateSwap(fromPos, toPos, callback) {
 }
 
 function handlePeek() {
-  if (STATE.solved) return;
+  if (STATE.solved || STATE.paused) return;
   const peekEl = $('peek-overlay');
   if (!STATE.imageURL) return;
   peekEl.style.backgroundImage = `url('${getDisplayURL(STATE.imageURL)}')`;
@@ -1060,6 +1209,8 @@ function handleWin() {
   if (STATE.solved) return;
   STATE.solved = true;
   stopTimer();
+  STATE.paused = true;
+  updatePlayButton();
 
   // Animate board
   $('puzzle-board').classList.add('solved');
@@ -1177,8 +1328,8 @@ function stopConfetti() {
 ============================================================ */
 function startTimer() {
   stopTimer();
-  STATE.seconds = 0;
-  updateStats();
+  STATE.paused = false;
+  updatePlayButton();
   STATE.timerHandle = setInterval(() => {
     if (finishIfSolved()) return;
     STATE.seconds++;
@@ -1190,6 +1341,21 @@ function stopTimer() {
   if (STATE.timerHandle) {
     clearInterval(STATE.timerHandle);
     STATE.timerHandle = null;
+  }
+}
+
+function pauseTimer() {
+  stopTimer();
+  STATE.paused = true;
+  updatePlayButton();
+}
+
+function togglePlayPause() {
+  if (STATE.solved || !STATE.imageDataURLs.length) return;
+  if (STATE.paused) {
+    startTimer();
+  } else {
+    pauseTimer();
   }
 }
 
@@ -1212,8 +1378,11 @@ async function startNewPuzzle() {
   STATE.solved      = false;
   STATE.selectedIdx = null;
   STATE.moves       = 0;
+  STATE.seconds     = 0;
+  STATE.paused      = true;
   stopTimer();
   updateStats();
+  updatePlayButton();
   stopConfetti();
   $('win-overlay').classList.remove('show');
 
@@ -1288,14 +1457,15 @@ async function startNewPuzzle() {
     easing  : 'easeOutBack',
   });
 
-  // 7. Start timer
-  startTimer();
+  // 7. Wait for the player to start the timer.
+  pauseTimer();
 }
 
 function reshuffleCurrent() {
   if (!STATE.imageDataURLs.length) return;
-  stopTimer();
+  pauseTimer();
   STATE.moves       = 0;
+  STATE.seconds     = 0;
   STATE.selectedIdx = null;
   STATE.solved      = false;
   $('puzzle-board').classList.remove('solved');
@@ -1305,7 +1475,7 @@ function reshuffleCurrent() {
   renderBoard();
   updateTileVisuals();
   updateStats();
-  startTimer();
+  updatePlayButton();
 
   anime({
     targets : '#puzzle-board .tile',
@@ -1348,6 +1518,7 @@ function init() {
   });
 
   // Action buttons
+  $('btn-play').addEventListener('click', togglePlayPause);
   $('btn-new').addEventListener('click', () => {
     STATE.puzzleNum++;
     STATE.uploadedImage = null;
