@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelSplit — Block Puzzle</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+<style>
+  /* ============================================================
+     CSS VARIABLES & RESET
+  ============================================================ */
+  :root {
+    --bg:        #0a0a0f;
+    --surface:   #12121a;
+    --panel:     #1a1a26;
+    --border:    #2a2a3f;
+    --accent:    #7c5cfc;
+    --accent2:   #fc5c7d;
+    --accent3:   #5cfc9d;
+    --text:      #e8e8f0;
+    --muted:     #6666a0;
+    --gap:       4px;
+    --radius:    12px;
+    --tile-size: 120px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 20% 10%, rgba(124,92,252,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 90%, rgba(252,92,125,0.06) 0%, transparent 60%);
+  }
+
+  /* ============================================================
+     HEADER
+  ============================================================ */
+  header {
+    width: 100%;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10,10,15,0.85);
+  }
+
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .logo span { color: var(--accent); }
+
+  .puzzle-counter {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* ============================================================
+     MAIN LAYOUT
+  ============================================================ */
+  main {
+    flex: 1;
+    width: 100%;
+    max-width: 1100px;
+    padding: 32px 20px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 32px;
+    align-items: start;
+  }
+
+  @media (max-width: 760px) {
+    main { grid-template-columns: 1fr; }
+  }
+
+  /* ============================================================
+     SIDEBAR (left)
+  ============================================================ */
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .theme-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .theme-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--text);
+    min-height: 2.5em;
+    display: flex;
+    align-items: flex-start;
+  }
+
+  /* Stats */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .stat-card .label {
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .stat-card .value {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  #timer-val { color: var(--accent3); }
+  #moves-val { color: var(--accent); }
+
+  /* Difficulty */
+  .section-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .difficulty-btns {
+    display: flex;
+    gap: 8px;
+  }
+
+  .diff-btn {
+    flex: 1;
+    padding: 10px 0;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+  .diff-btn:hover { border-color: var(--accent); color: var(--text); }
+  .diff-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* Preview */
+  .preview-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  #preview-img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.4s;
+    display: block;
+  }
+  #preview-img.loaded { opacity: 1; }
+
+  /* Action buttons */
+  .action-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btn {
+    padding: 12px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: 0.02em;
+  }
+  .btn:hover { border-color: var(--accent); background: rgba(124,92,252,0.08); color: var(--accent); }
+  .btn:active { transform: scale(0.98); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #8f72fc; }
+  .btn .icon { font-size: 1rem; }
+
+  /* Best score */
+  .best-scores {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .score-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 0.8rem;
+  }
+  .score-row .dlabel { color: var(--muted); }
+  .score-row .dval {
+    font-family: 'Space Mono', monospace;
+    color: var(--accent3);
+    font-size: 0.75rem;
+  }
+
+  /* ============================================================
+     PUZZLE BOARD (right)
+  ============================================================ */
+  .board-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  #puzzle-board {
+    display: grid;
+    gap: var(--gap);
+    position: relative;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 0 0 2px var(--border), 0 32px 80px rgba(0,0,0,0.5);
+    transition: box-shadow 0.4s;
+  }
+  #puzzle-board.solved {
+    box-shadow: 0 0 0 3px var(--accent3), 0 32px 80px rgba(92,252,157,0.2);
+    gap: 0;
+  }
+
+  .tile {
+    width: var(--tile-size);
+    height: var(--tile-size);
+    background-size: cover;
+    background-repeat: no-repeat;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .tile::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0);
+    transition: background 0.15s;
+    border-radius: 4px;
+  }
+  .tile:hover::after { background: rgba(255,255,255,0.05); }
+  .tile.selected {
+    box-shadow: inset 0 0 0 3px var(--accent), 0 0 20px rgba(124,92,252,0.4);
+    z-index: 2;
+    transform: scale(1.04);
+    filter: brightness(1.1);
+  }
+  .tile.swap-anim { transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1); }
+  .tile.correct { filter: brightness(1.05) saturate(1.1); }
+
+  /* Tile number badge */
+  .tile-num {
+    position: absolute;
+    bottom: 4px;
+    right: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.55rem;
+    color: rgba(255,255,255,0.4);
+    line-height: 1;
+  }
+
+  /* Loading overlay */
+  #loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 10;
+    border-radius: var(--radius);
+  }
+  #loading-overlay.hidden { display: none; }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+
+  /* ============================================================
+     WIN OVERLAY
+  ============================================================ */
+  #win-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,15,0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    z-index: 200;
+    backdrop-filter: blur(8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s;
+  }
+  #win-overlay.show { opacity: 1; pointer-events: all; }
+
+  .win-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 0 80px rgba(124,92,252,0.2);
+  }
+
+  .win-emoji {
+    font-size: 3.5rem;
+    line-height: 1;
+  }
+
+  .win-title {
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .win-stats {
+    display: flex;
+    gap: 32px;
+  }
+  .win-stat { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .win-stat .wlabel { font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .win-stat .wval { font-family: 'Space Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--text); }
+
+  .win-next {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ============================================================
+     CONFETTI CANVAS
+  ============================================================ */
+  #confetti-canvas {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 199;
+  }
+
+  /* ============================================================
+     PEEK overlay
+  ============================================================ */
+  #peek-overlay {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    border-radius: var(--radius);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+    z-index: 5;
+  }
+  #peek-overlay.show { opacity: 1; }
+
+  /* ============================================================
+     SCROLLBAR
+  ============================================================ */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ============================================================
+     RESPONSIVE TILE SIZING
+  ============================================================ */
+  @media (max-width: 600px) {
+    :root { --tile-size: 80px; --gap: 3px; }
+    .win-card { padding: 32px 24px; }
+    .win-stats { gap: 20px; }
+  }
+  @media (max-width: 400px) {
+    :root { --tile-size: 64px; --gap: 2px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">Pixel<span>Split</span></div>
+  <div class="puzzle-counter">Puzzle <span id="puzzle-num">1</span></div>
+</header>
+
+<!-- MAIN -->
+<main>
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div>
+      <div class="theme-label">Current Theme</div>
+      <div class="theme-title" id="theme-title">Generating…</div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="label">Time</div>
+        <div class="value" id="timer-val">0:00</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Moves</div>
+        <div class="value" id="moves-val">0</div>
+      </div>
+    </div>
+
+    <!-- Difficulty -->
+    <div>
+      <div class="section-label">Difficulty</div>
+      <div class="difficulty-btns">
+        <button class="diff-btn active" data-size="3">Easy<br><span style="font-weight:400;font-size:0.7em;opacity:0.7">3×3</span></button>
+        <button class="diff-btn" data-size="4">Medium<br><span style="font-weight:400;font-size:0.7em;opacity:0.7">4×4</span></button>
+        <button class="diff-btn" data-size="5">Hard<br><span style="font-weight:400;font-size:0.7em;opacity:0.7">5×5</span></button>
+      </div>
+    </div>
+
+    <!-- Preview -->
+    <div class="preview-wrap">
+      <div class="section-label">Reference Image</div>
+      <img id="preview-img" src="" alt="puzzle preview" crossorigin="anonymous">
+    </div>
+
+    <!-- Action buttons -->
+    <div class="action-btns">
+      <button class="btn primary" id="btn-new"><span class="icon">✦</span> New Puzzle</button>
+      <button class="btn" id="btn-shuffle"><span class="icon">⟳</span> Shuffle Again</button>
+      <button class="btn" id="btn-peek"><span class="icon">👁</span> Peek (+10 moves)</button>
+    </div>
+
+    <!-- Best scores -->
+    <div class="best-scores">
+      <div class="section-label">Best Times</div>
+      <div class="score-row"><span class="dlabel">Easy (3×3)</span><span class="dval" id="best-3">—</span></div>
+      <div class="score-row"><span class="dlabel">Medium (4×4)</span><span class="dval" id="best-4">—</span></div>
+      <div class="score-row"><span class="dlabel">Hard (5×5)</span><span class="dval" id="best-5">—</span></div>
+    </div>
+  </div>
+
+  <!-- BOARD -->
+  <div class="board-wrap">
+    <div style="position:relative; display:inline-block;">
+      <div id="puzzle-board">
+        <div id="loading-overlay">
+          <div class="spinner"></div>
+          <div class="loading-text" id="loading-text">Generating puzzle…</div>
+        </div>
+      </div>
+      <div id="peek-overlay"></div>
+    </div>
+  </div>
+</main>
+
+<!-- WIN OVERLAY -->
+<div id="win-overlay">
+  <div class="win-card">
+    <div class="win-emoji">🎉</div>
+    <div class="win-title">Puzzle Solved!</div>
+    <div class="win-stats">
+      <div class="win-stat">
+        <div class="wlabel">Time</div>
+        <div class="wval" id="win-time">—</div>
+      </div>
+      <div class="win-stat">
+        <div class="wlabel">Moves</div>
+        <div class="wval" id="win-moves">—</div>
+      </div>
+    </div>
+    <div class="win-next" id="win-next-txt">Next puzzle in 3…</div>
+  </div>
+</div>
+
+<!-- CONFETTI CANVAS -->
+<canvas id="confetti-canvas"></canvas>
+
+<!-- HIDDEN CANVAS for image slicing -->
+<canvas id="slice-canvas" style="display:none"></canvas>
+
+<script>
+/* ============================================================
+   1. CONFIG
+============================================================ */
+const CONFIG = {
+  defaultGridSize : 3,
+  animSpeed       : 220,
+  peekDuration    : 2000,
+  peekPenalty     : 10,
+  winDelay        : 3000,
+  imageSize       : 600,          // px for slicing
+  apiModel        : 'claude-sonnet-4-20250514',
+  imageSeeds      : [],           // track used seeds
+};
+
+// Curated themes for AI-generated prompts (used when calling Anthropic API)
+const THEMES = [
+  { title: "Enchanted Forest",       prompt: "a magical glowing forest with fireflies and ancient trees" },
+  { title: "Futuristic City",        prompt: "a neon-lit cyberpunk city at night with flying cars" },
+  { title: "Underwater Kingdom",     prompt: "a vibrant coral reef with tropical fish and sea turtles" },
+  { title: "Snowy Mountain Peak",    prompt: "a dramatic snow-capped mountain at golden hour" },
+  { title: "Cherry Blossom Garden",  prompt: "a serene Japanese garden with pink cherry blossoms" },
+  { title: "Space Nebula",           prompt: "a colorful cosmic nebula with stars and galaxies" },
+  { title: "Desert Sunset",          prompt: "dramatic sand dunes glowing at sunset in golden light" },
+  { title: "Ancient Ruins",          prompt: "ivy-covered ancient temple ruins in a jungle" },
+  { title: "Northern Lights",        prompt: "aurora borealis over a frozen lake reflecting green light" },
+  { title: "Tropical Paradise",      prompt: "a secluded tropical beach with turquoise water and palm trees" },
+  { title: "Misty Waterfall",        prompt: "a dramatic waterfall surrounded by mossy rocks and mist" },
+  { title: "Autumn Forest",          prompt: "a forest path covered in colorful autumn leaves" },
+  { title: "Volcanic Landscape",     prompt: "dramatic volcanic eruption with glowing lava flows at night" },
+  { title: "Floating Islands",       prompt: "fantastical floating islands with waterfalls in the clouds" },
+  { title: "Crystal Cave",           prompt: "a cave filled with enormous glowing purple crystals" },
+  { title: "Sunflower Field",        prompt: "a vast field of bright yellow sunflowers under blue sky" },
+  { title: "Old Lighthouse",         prompt: "a dramatic lighthouse on rocky cliffs in stormy seas" },
+  { title: "Bamboo Forest",          prompt: "a peaceful bamboo forest with dappled sunlight" },
+  { title: "Lavender Valley",        prompt: "rolling hills covered in purple lavender at dusk" },
+  { title: "Canyon at Dawn",         prompt: "grand canyon walls lit by warm orange sunrise light" },
+];
+
+/* ============================================================
+   2. STATE
+============================================================ */
+const STATE = {
+  gridSize    : CONFIG.defaultGridSize,
+  tiles       : [],       // array of { correctIndex, currentIndex }
+  imageDataURLs: [],      // sliced tile data URLs
+  selectedIdx : null,
+  moves       : 0,
+  seconds     : 0,
+  timerHandle : null,
+  puzzleNum   : 1,
+  currentSeed : null,
+  currentTheme: null,
+  solved      : false,
+  imageURL    : null,
+};
+
+/* ============================================================
+   3. IMAGE LOADER
+============================================================ */
+function getUnusedSeed() {
+  let seed;
+  do { seed = Math.floor(Math.random() * 9000) + 1000; }
+  while (CONFIG.imageSeeds.includes(seed));
+  CONFIG.imageSeeds.push(seed);
+  if (CONFIG.imageSeeds.length > 50) CONFIG.imageSeeds.shift();
+  return seed;
+}
+
+function pickTheme() {
+  const used = STATE.currentTheme;
+  let t;
+  do { t = THEMES[Math.floor(Math.random() * THEMES.length)]; }
+  while (t === used);
+  return t;
+}
+
+// Try Anthropic API first for theme; fallback to local list
+async function fetchThemeTitle() {
+  const fallback = pickTheme();
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-calls': 'true',
+      },
+      body: JSON.stringify({
+        model: CONFIG.apiModel,
+        max_tokens: 80,
+        messages: [{
+          role: 'user',
+          content: 'Give me ONE creative, poetic, short title (3-5 words) for a nature or fantasy landscape photo puzzle. Reply with ONLY the title, no punctuation, no quotes, no explanation.'
+        }]
+      })
+    });
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    const title = data.content?.[0]?.text?.trim();
+    if (title && title.length > 2) return { title, prompt: title };
+  } catch (_) { /* fall through */ }
+  return fallback;
+}
+
+function buildImageURL(seed) {
+  return `https://picsum.photos/${CONFIG.imageSize}/${CONFIG.imageSize}?random=${seed}`;
+}
+
+async function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload  = () => resolve(img);
+    img.onerror = () => reject(new Error('Image load failed'));
+    // Use corsproxy.io as CORS proxy
+    img.src = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
+  });
+}
+
+async function sliceImage(imgElement, gridSize) {
+  const canvas = document.getElementById('slice-canvas');
+  const ctx = canvas.getContext('2d');
+  const tileSize = CONFIG.imageSize / gridSize;
+  canvas.width  = tileSize;
+  canvas.height = tileSize;
+
+  const urls = [];
+  for (let row = 0; row < gridSize; row++) {
+    for (let col = 0; col < gridSize; col++) {
+      ctx.clearRect(0, 0, tileSize, tileSize);
+      ctx.drawImage(imgElement,
+        col * tileSize, row * tileSize, tileSize, tileSize,
+        0, 0, tileSize, tileSize
+      );
+      urls.push(canvas.toDataURL('image/jpeg', 0.92));
+    }
+  }
+  return urls;
+}
+
+/* ============================================================
+   4. PUZZLE ENGINE
+============================================================ */
+function createTiles(count) {
+  return Array.from({ length: count }, (_, i) => ({
+    correctIndex  : i,
+    currentIndex  : i,
+  }));
+}
+
+function shuffleTiles(tiles) {
+  const n = tiles.length;
+  // Fisher-Yates ensuring not already solved
+  let arr = [...Array(n).keys()];
+  let attempts = 0;
+  do {
+    for (let i = n - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    attempts++;
+  } while (isSolvedArr(arr) && attempts < 10);
+
+  return arr.map((correctIdx, currentIdx) => ({
+    correctIndex : correctIdx,
+    currentIndex : currentIdx,
+  }));
+}
+
+function isSolvedArr(arr) {
+  return arr.every((v, i) => v === i);
+}
+
+function checkSolved(tiles) {
+  return tiles.every(t => t.correctIndex === t.currentIndex);
+}
+
+function swapTiles(tiles, idxA, idxB) {
+  const newTiles = [...tiles];
+  // swap correctIndex values at positions idxA and idxB
+  const tmp = newTiles[idxA].correctIndex;
+  newTiles[idxA] = { ...newTiles[idxA], correctIndex: newTiles[idxB].correctIndex };
+  newTiles[idxB] = { ...newTiles[idxB], correctIndex: tmp };
+  return newTiles;
+}
+
+/* ============================================================
+   5. RENDER
+============================================================ */
+const $ = id => document.getElementById(id);
+
+function setTileSize() {
+  const n = STATE.gridSize;
+  // Responsive: fit board in viewport
+  const maxBoard = Math.min(window.innerWidth - 40, 520);
+  const tileSize = Math.floor((maxBoard - (n - 1) * parseInt(getComputedStyle(document.documentElement).getPropertyValue('--gap'))) / n);
+  document.documentElement.style.setProperty('--tile-size', tileSize + 'px');
+}
+
+function renderBoard() {
+  const board = $('puzzle-board');
+  const n = STATE.gridSize;
+  board.style.gridTemplateColumns = `repeat(${n}, var(--tile-size))`;
+  board.classList.remove('solved');
+
+  // Remove existing tiles
+  board.querySelectorAll('.tile').forEach(el => el.remove());
+
+  STATE.tiles.forEach((tile, pos) => {
+    const el = document.createElement('div');
+    el.className = 'tile';
+    el.dataset.pos = pos;
+
+    const dataURL = STATE.imageDataURLs[tile.correctIndex];
+    if (dataURL) {
+      el.style.backgroundImage = `url('${dataURL}')`;
+      el.style.backgroundSize  = 'cover';
+    }
+
+    // subtle position number
+    const num = document.createElement('div');
+    num.className = 'tile-num';
+    num.textContent = pos + 1;
+    el.appendChild(num);
+
+    el.addEventListener('click', () => handleTileClick(pos));
+    board.appendChild(el);
+  });
+}
+
+function updateTileVisuals() {
+  const board = $('puzzle-board');
+  const tilEls = board.querySelectorAll('.tile');
+  STATE.tiles.forEach((tile, pos) => {
+    const el = tilEls[pos];
+    if (!el) return;
+    const dataURL = STATE.imageDataURLs[tile.correctIndex];
+    if (dataURL) el.style.backgroundImage = `url('${dataURL}')`;
+    el.classList.toggle('selected', STATE.selectedIdx === pos);
+    el.classList.toggle('correct', tile.correctIndex === tile.currentIndex);
+  });
+}
+
+function updateStats() {
+  $('moves-val').textContent = STATE.moves;
+  $('timer-val').textContent = formatTime(STATE.seconds);
+}
+
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2,'0')}`;
+}
+
+function updateBestScores() {
+  [3, 4, 5].forEach(n => {
+    const key = `best_${n}`;
+    const val = localStorage.getItem(key);
+    $(`best-${n}`).textContent = val ? formatTime(parseInt(val)) : '—';
+  });
+}
+
+/* ============================================================
+   6. EVENTS — click handler & peek
+============================================================ */
+function handleTileClick(pos) {
+  if (STATE.solved) return;
+
+  if (STATE.selectedIdx === null) {
+    // First selection
+    STATE.selectedIdx = pos;
+    updateTileVisuals();
+  } else if (STATE.selectedIdx === pos) {
+    // Deselect
+    STATE.selectedIdx = null;
+    updateTileVisuals();
+  } else {
+    // Swap
+    const from = STATE.selectedIdx;
+    const to   = pos;
+    STATE.selectedIdx = null;
+
+    animateSwap(from, to, () => {
+      STATE.tiles = swapTiles(STATE.tiles, from, to);
+      STATE.moves++;
+      updateTileVisuals();
+      updateStats();
+      if (checkSolved(STATE.tiles)) handleWin();
+    });
+  }
+}
+
+function animateSwap(fromPos, toPos, callback) {
+  const board = $('puzzle-board');
+  const tiles = board.querySelectorAll('.tile');
+  const elA = tiles[fromPos];
+  const elB = tiles[toPos];
+
+  const rectA = elA.getBoundingClientRect();
+  const rectB = elB.getBoundingClientRect();
+  const dx = rectB.left - rectA.left;
+  const dy = rectB.top  - rectA.top;
+
+  anime({
+    targets: elA,
+    translateX: [0, dx],
+    translateY: [0, dy],
+    duration: CONFIG.animSpeed,
+    easing: 'easeInOutCubic',
+  });
+  anime({
+    targets: elB,
+    translateX: [0, -dx],
+    translateY: [0, -dy],
+    duration: CONFIG.animSpeed,
+    easing: 'easeInOutCubic',
+    complete: () => {
+      // Reset transforms — DOM positions change via re-render
+      elA.style.transform = '';
+      elB.style.transform = '';
+      callback();
+    }
+  });
+}
+
+function handlePeek() {
+  if (STATE.solved) return;
+  const peekEl = $('peek-overlay');
+  if (!STATE.imageURL) return;
+  peekEl.style.backgroundImage = `url('https://corsproxy.io/?url=${encodeURIComponent(STATE.imageURL)}')`;
+  peekEl.classList.add('show');
+  STATE.moves += CONFIG.peekPenalty;
+  updateStats();
+  setTimeout(() => peekEl.classList.remove('show'), CONFIG.peekDuration);
+}
+
+/* ============================================================
+   7. WIN HANDLER
+============================================================ */
+function handleWin() {
+  STATE.solved = true;
+  stopTimer();
+
+  // Animate board
+  $('puzzle-board').classList.add('solved');
+  anime({
+    targets: '#puzzle-board .tile',
+    scale   : [1, 1.03, 1],
+    duration: 400,
+    delay   : anime.stagger(30),
+    easing  : 'easeInOutBack',
+  });
+
+  // Save best score
+  const key = `best_${STATE.gridSize}`;
+  const prev = parseInt(localStorage.getItem(key) || '999999');
+  if (STATE.seconds < prev) {
+    localStorage.setItem(key, STATE.seconds);
+  }
+  updateBestScores();
+
+  // Show win overlay
+  $('win-time').textContent  = formatTime(STATE.seconds);
+  $('win-moves').textContent = STATE.moves;
+
+  setTimeout(() => {
+    $('win-overlay').classList.add('show');
+    launchConfetti();
+    startCountdown();
+  }, 600);
+}
+
+function startCountdown() {
+  let count = 3;
+  const el = $('win-next-txt');
+  el.textContent = `Next puzzle in ${count}…`;
+  const iv = setInterval(() => {
+    count--;
+    if (count <= 0) {
+      clearInterval(iv);
+      $('win-overlay').classList.remove('show');
+      stopConfetti();
+      startNewPuzzle();
+    } else {
+      el.textContent = `Next puzzle in ${count}…`;
+    }
+  }, 1000);
+}
+
+/* ============================================================
+   CONFETTI
+============================================================ */
+let confettiAnim = null;
+let confettiParticles = [];
+
+function launchConfetti() {
+  const canvas = $('confetti-canvas');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+  const colors = ['#7c5cfc','#fc5c7d','#5cfc9d','#fcdb5c','#5ccffc','#fc9d5c'];
+
+  confettiParticles = Array.from({ length: 120 }, () => ({
+    x   : Math.random() * canvas.width,
+    y   : Math.random() * canvas.height - canvas.height,
+    r   : Math.random() * 6 + 4,
+    d   : Math.random() * 80 + 20,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    tilt: Math.random() * 10 - 10,
+    tiltAngle: 0,
+    tiltAngleInc: Math.random() * 0.07 + 0.05,
+    vy  : Math.random() * 3 + 2,
+  }));
+
+  let angle = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    angle += 0.01;
+    confettiParticles.forEach(p => {
+      p.tiltAngle += p.tiltAngleInc;
+      p.y += p.vy;
+      p.x += Math.sin(angle + p.d) * 1.2;
+      p.tilt = Math.sin(p.tiltAngle) * 15;
+      if (p.y > canvas.height) {
+        p.y = -10;
+        p.x = Math.random() * canvas.width;
+      }
+      ctx.beginPath();
+      ctx.lineWidth = p.r;
+      ctx.strokeStyle = p.color;
+      ctx.moveTo(p.x + p.tilt + p.r / 4, p.y);
+      ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 4);
+      ctx.stroke();
+    });
+    confettiAnim = requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+function stopConfetti() {
+  if (confettiAnim) cancelAnimationFrame(confettiAnim);
+  const canvas = $('confetti-canvas');
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+}
+
+/* ============================================================
+   TIMER
+============================================================ */
+function startTimer() {
+  stopTimer();
+  STATE.seconds = 0;
+  updateStats();
+  STATE.timerHandle = setInterval(() => {
+    STATE.seconds++;
+    updateStats();
+  }, 1000);
+}
+
+function stopTimer() {
+  if (STATE.timerHandle) {
+    clearInterval(STATE.timerHandle);
+    STATE.timerHandle = null;
+  }
+}
+
+/* ============================================================
+   LOADING STATES
+============================================================ */
+function showLoading(msg = 'Generating puzzle…') {
+  $('loading-overlay').classList.remove('hidden');
+  $('loading-text').textContent = msg;
+}
+
+function hideLoading() {
+  $('loading-overlay').classList.add('hidden');
+}
+
+/* ============================================================
+   START NEW PUZZLE
+============================================================ */
+async function startNewPuzzle() {
+  STATE.solved      = false;
+  STATE.selectedIdx = null;
+  STATE.moves       = 0;
+  stopTimer();
+  updateStats();
+  stopConfetti();
+  $('win-overlay').classList.remove('show');
+
+  showLoading('Generating theme…');
+  setTileSize();
+  renderBoard(); // blank board while loading
+
+  // 1. Get theme
+  let theme;
+  try {
+    theme = await fetchThemeTitle();
+  } catch (_) {
+    theme = pickTheme();
+  }
+  STATE.currentTheme = theme;
+  $('theme-title').textContent = theme.title;
+  $('puzzle-num').textContent  = STATE.puzzleNum;
+
+  // 2. Load image
+  showLoading('Loading image…');
+  const seed = getUnusedSeed();
+  STATE.currentSeed = seed;
+  const imageURL = buildImageURL(seed);
+  STATE.imageURL = imageURL;
+
+  // Update preview
+  const previewImg = $('preview-img');
+  previewImg.classList.remove('loaded');
+  previewImg.src = `https://corsproxy.io/?url=${encodeURIComponent(imageURL)}`;
+  previewImg.onload = () => previewImg.classList.add('loaded');
+
+  let imgEl;
+  try {
+    showLoading('Loading image…');
+    imgEl = await loadImage(imageURL);
+  } catch (err) {
+    // Fallback: try direct URL
+    try {
+      imgEl = await new Promise((res, rej) => {
+        const img = new Image();
+        img.onload = () => res(img);
+        img.onerror = rej;
+        img.src = imageURL;
+      });
+    } catch (_) {
+      showLoading('Retrying with new image…');
+      setTimeout(startNewPuzzle, 1000);
+      return;
+    }
+  }
+
+  // 3. Slice
+  showLoading('Cutting into pieces…');
+  try {
+    STATE.imageDataURLs = await sliceImage(imgEl, STATE.gridSize);
+  } catch (e) {
+    console.error('Slice error', e);
+    setTimeout(startNewPuzzle, 1000);
+    return;
+  }
+
+  // 4. Build & shuffle tiles
+  const total = STATE.gridSize * STATE.gridSize;
+  STATE.tiles = shuffleTiles(createTiles(total));
+
+  // 5. Render
+  hideLoading();
+  renderBoard();
+  updateTileVisuals();
+
+  // 6. Animate in
+  anime({
+    targets : '#puzzle-board .tile',
+    opacity : [0, 1],
+    scale   : [0.7, 1],
+    delay   : anime.stagger(40, { grid: [STATE.gridSize, STATE.gridSize], from: 'center' }),
+    duration: 500,
+    easing  : 'easeOutBack',
+  });
+
+  // 7. Start timer
+  startTimer();
+}
+
+function reshuffleCurrent() {
+  if (!STATE.imageDataURLs.length) return;
+  stopTimer();
+  STATE.moves       = 0;
+  STATE.selectedIdx = null;
+  STATE.solved      = false;
+  $('puzzle-board').classList.remove('solved');
+
+  const total = STATE.gridSize * STATE.gridSize;
+  STATE.tiles = shuffleTiles(createTiles(total));
+  renderBoard();
+  updateTileVisuals();
+  updateStats();
+  startTimer();
+
+  anime({
+    targets : '#puzzle-board .tile',
+    rotate  : ['0deg', '10deg', '-10deg', '0deg'],
+    opacity : [0.5, 1],
+    delay   : anime.stagger(30),
+    duration: 400,
+    easing  : 'easeOutElastic(1, .8)',
+  });
+}
+
+/* ============================================================
+   8. INIT
+============================================================ */
+function init() {
+  // Difficulty buttons
+  document.querySelectorAll('.diff-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      STATE.gridSize = parseInt(btn.dataset.size);
+      STATE.puzzleNum++;
+      startNewPuzzle();
+    });
+  });
+
+  // Action buttons
+  $('btn-new').addEventListener('click', () => {
+    STATE.puzzleNum++;
+    startNewPuzzle();
+  });
+  $('btn-shuffle').addEventListener('click', reshuffleCurrent);
+  $('btn-peek').addEventListener('click', handlePeek);
+
+  // Responsive resize
+  window.addEventListener('resize', () => {
+    setTileSize();
+    renderBoard();
+    updateTileVisuals();
+  });
+
+  // Load best scores
+  updateBestScores();
+
+  // Start first puzzle
+  startNewPuzzle();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
