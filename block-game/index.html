@@ -286,11 +286,13 @@
     background-repeat: no-repeat;
     background-clip: border-box;
     border: calc(var(--gap) / 2) solid var(--border);
-    cursor: pointer;
+    cursor: grab;
     border-radius: 0;
-    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.2s, border-color 0.2s;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.2s, border-width 0.2s;
     position: relative;
     overflow: hidden;
+    touch-action: none;
+    user-select: none;
   }
   .tile::after {
     content: '';
@@ -301,29 +303,25 @@
     border-radius: 4px;
   }
   .tile:hover::after { background: rgba(255,255,255,0.05); }
-  .tile.merge-top { border-top-color: transparent; }
-  .tile.merge-right { border-right-color: transparent; }
-  .tile.merge-bottom { border-bottom-color: transparent; }
-  .tile.merge-left { border-left-color: transparent; }
+  .tile.merge-top { border-top-width: 0; }
+  .tile.merge-right { border-right-width: 0; }
+  .tile.merge-bottom { border-bottom-width: 0; }
+  .tile.merge-left { border-left-width: 0; }
   .tile.selected {
     box-shadow: inset 0 0 0 3px var(--accent), 0 0 20px rgba(124,92,252,0.4);
     z-index: 2;
     transform: scale(1.04);
     filter: brightness(1.1);
   }
+  .tile.dragging {
+    cursor: grabbing;
+    z-index: 4;
+    box-shadow: 0 16px 36px rgba(0,0,0,0.38), 0 0 0 2px var(--accent);
+    filter: brightness(1.12);
+    pointer-events: none;
+  }
   .tile.swap-anim { transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1); }
   .tile.correct { filter: brightness(1.05) saturate(1.1); }
-
-  /* Tile number badge */
-  .tile-num {
-    position: absolute;
-    bottom: 4px;
-    right: 6px;
-    font-family: 'Space Mono', monospace;
-    font-size: 0.55rem;
-    color: rgba(255,255,255,0.4);
-    line-height: 1;
-  }
 
   /* Loading overlay */
   #loading-overlay {
@@ -611,9 +609,11 @@ const PRESET_IMAGES = [
 ============================================================ */
 const STATE = {
   gridSize    : CONFIG.defaultGridSize,
-  tiles       : [],       // array of { correctIndex, currentIndex }
+  tiles       : [],       // array of { correctIndex } in board-position order
   imageDataURLs: [],      // sliced tile data URLs
   selectedIdx : null,
+  drag        : null,
+  suppressClick: false,
   moves       : 0,
   seconds     : 0,
   timerHandle : null,
@@ -764,7 +764,7 @@ function isSolvedArr(arr) {
 }
 
 function checkSolved(tiles) {
-  return tiles.every(t => t.correctIndex === t.currentIndex);
+  return tiles.every((tile, pos) => tile.correctIndex === pos);
 }
 
 function swapTiles(tiles, idxA, idxB) {
@@ -802,6 +802,8 @@ function renderBoard() {
     const el = document.createElement('div');
     el.className = 'tile';
     el.dataset.pos = pos;
+    el.dataset.piece = tile.correctIndex;
+    el.draggable = true;
 
     const dataURL = STATE.imageDataURLs[tile.correctIndex];
     if (dataURL) {
@@ -809,13 +811,12 @@ function renderBoard() {
       el.style.backgroundSize  = 'cover';
     }
 
-    // subtle position number
-    const num = document.createElement('div');
-    num.className = 'tile-num';
-    num.textContent = pos + 1;
-    el.appendChild(num);
-
     el.addEventListener('click', () => handleTileClick(pos));
+    el.addEventListener('pointerdown', event => handleTilePointerDown(event, pos));
+    el.addEventListener('dragstart', event => handleNativeDragStart(event, pos));
+    el.addEventListener('dragover', event => event.preventDefault());
+    el.addEventListener('drop', event => handleNativeDrop(event, pos));
+    el.addEventListener('dragend', handleNativeDragEnd);
     board.appendChild(el);
   });
 }
@@ -828,15 +829,17 @@ function updateTileVisuals() {
     if (!el) return;
     const dataURL = STATE.imageDataURLs[tile.correctIndex];
     if (dataURL) el.style.backgroundImage = `url('${dataURL}')`;
+    el.dataset.pos = pos;
+    el.dataset.piece = tile.correctIndex;
     el.classList.toggle('selected', STATE.selectedIdx === pos);
-    el.classList.toggle('correct', tile.correctIndex === tile.currentIndex);
+    el.classList.toggle('correct', tile.correctIndex === pos);
     updateMergeClasses(el, pos);
   });
 }
 
 function isTileCorrect(pos) {
   const tile = STATE.tiles[pos];
-  return Boolean(tile && tile.correctIndex === tile.currentIndex);
+  return Boolean(tile && tile.correctIndex === pos);
 }
 
 function updateMergeClasses(el, pos) {
@@ -879,6 +882,10 @@ function updateBestScores() {
 ============================================================ */
 function handleTileClick(pos) {
   if (STATE.solved) return;
+  if (STATE.suppressClick) {
+    STATE.suppressClick = false;
+    return;
+  }
 
   if (STATE.selectedIdx === null) {
     // First selection
@@ -892,16 +899,114 @@ function handleTileClick(pos) {
     // Swap
     const from = STATE.selectedIdx;
     const to   = pos;
-    STATE.selectedIdx = null;
-
-    animateSwap(from, to, () => {
-      STATE.tiles = swapTiles(STATE.tiles, from, to);
-      STATE.moves++;
-      updateTileVisuals();
-      updateStats();
-      if (checkSolved(STATE.tiles)) handleWin();
-    });
+    performTileSwap(from, to);
   }
+}
+
+function performTileSwap(from, to) {
+  if (STATE.solved || from === to) {
+    STATE.selectedIdx = null;
+    updateTileVisuals();
+    return;
+  }
+
+  STATE.selectedIdx = null;
+  animateSwap(from, to, () => {
+    STATE.tiles = swapTiles(STATE.tiles, from, to);
+    STATE.moves++;
+    updateTileVisuals();
+    updateStats();
+    finishIfSolved();
+  });
+}
+
+function handleTilePointerDown(event, pos) {
+  if (STATE.solved || event.button > 0) return;
+
+  const el = event.currentTarget;
+  STATE.drag = {
+    pointerId: event.pointerId,
+    from: pos,
+    startX: event.clientX,
+    startY: event.clientY,
+    active: false,
+  };
+
+  el.setPointerCapture?.(event.pointerId);
+  el.addEventListener('pointermove', handleTilePointerMove);
+  el.addEventListener('pointerup', handleTilePointerUp);
+  el.addEventListener('pointercancel', cancelTileDrag);
+}
+
+function handleTilePointerMove(event) {
+  const drag = STATE.drag;
+  if (!drag || drag.pointerId !== event.pointerId) return;
+
+  const dx = event.clientX - drag.startX;
+  const dy = event.clientY - drag.startY;
+  const distance = Math.hypot(dx, dy);
+  if (!drag.active && distance < 8) return;
+
+  drag.active = true;
+  const el = event.currentTarget;
+  el.classList.add('dragging');
+  el.style.transform = `translate(${dx}px, ${dy}px) scale(1.04)`;
+}
+
+function handleTilePointerUp(event) {
+  const drag = STATE.drag;
+  const el = event.currentTarget;
+  cleanupTileDrag(el, event.pointerId);
+  if (!drag || drag.pointerId !== event.pointerId) return;
+
+  if (!drag.active) return;
+  STATE.suppressClick = true;
+
+  const dropTarget = document.elementFromPoint(event.clientX, event.clientY)?.closest('.tile');
+  const to = dropTarget ? Number(dropTarget.dataset.pos) : drag.from;
+  performTileSwap(drag.from, Number.isInteger(to) ? to : drag.from);
+}
+
+function cancelTileDrag(event) {
+  cleanupTileDrag(event.currentTarget, event.pointerId);
+  STATE.drag = null;
+}
+
+function cleanupTileDrag(el, pointerId) {
+  el.releasePointerCapture?.(pointerId);
+  el.removeEventListener('pointermove', handleTilePointerMove);
+  el.removeEventListener('pointerup', handleTilePointerUp);
+  el.removeEventListener('pointercancel', cancelTileDrag);
+  el.classList.remove('dragging');
+  el.style.transform = '';
+  STATE.drag = null;
+}
+
+function handleNativeDragStart(event, pos) {
+  if (STATE.solved) {
+    event.preventDefault();
+    return;
+  }
+
+  STATE.drag = { from: pos, active: true, native: true };
+  STATE.selectedIdx = null;
+  event.currentTarget.classList.add('dragging');
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(pos));
+  }
+}
+
+function handleNativeDrop(event, pos) {
+  event.preventDefault();
+  const from = Number(event.dataTransfer?.getData('text/plain') ?? STATE.drag?.from);
+  STATE.suppressClick = true;
+  performTileSwap(Number.isInteger(from) ? from : pos, pos);
+}
+
+function handleNativeDragEnd(event) {
+  event.currentTarget.classList.remove('dragging');
+  STATE.drag = null;
 }
 
 function animateSwap(fromPos, toPos, callback) {
@@ -952,6 +1057,7 @@ function handlePeek() {
    7. WIN HANDLER
 ============================================================ */
 function handleWin() {
+  if (STATE.solved) return;
   STATE.solved = true;
   stopTimer();
 
@@ -982,6 +1088,15 @@ function handleWin() {
     launchConfetti();
     startCountdown();
   }, 600);
+}
+
+function finishIfSolved() {
+  if (!STATE.solved && checkSolved(STATE.tiles)) {
+    updateTileVisuals();
+    handleWin();
+    return true;
+  }
+  return false;
 }
 
 function startCountdown() {
@@ -1065,6 +1180,7 @@ function startTimer() {
   STATE.seconds = 0;
   updateStats();
   STATE.timerHandle = setInterval(() => {
+    if (finishIfSolved()) return;
     STATE.seconds++;
     updateStats();
   }, 1000);
