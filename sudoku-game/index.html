@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parth Sudoku - Premium Web Game</title>
+  <meta name="description"
+    content="A beautiful, interactive, and responsive Sudoku game with Dark/Light theme, timer, pencil marks, and custom statistics.">
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Popover Polyfill for older browsers -->
+  <script type="module">
+    if (!HTMLElement.prototype.hasOwnProperty("popover")) {
+      await import("https://unpkg.com/@oddbird/popover-polyfill@latest");
+    }
+  </script>
+</head>
+
+<body data-theme="dark">
+  <div id="header"></div>
+
+  <!-- Fireworks Canvas for Success Screen -->
+  <canvas id="fireworks-canvas"></canvas>
+
+  <div class="app-container">
+
+    <!-- Header panel -->
+    <header class="glass-panel app-header" id="app-header">
+      <h1 class="brand-title">Parth Sudoku</h1>
+
+      <div class="header-controls">
+        <!-- Stats Button -->
+        <button id="btn-stats" class="btn btn-icon-only" aria-label="View Statistics" title="Statistics">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button id="btn-theme-toggle" class="btn btn-icon-only" aria-label="Toggle Theme" title="Toggle Theme">
+          <svg id="theme-icon-sun" viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2"
+            fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Game Container -->
+    <main class="game-layout">
+
+      <!-- Sudoku Grid Wrapper -->
+      <section class="glass-panel board-wrapper" id="board-panel">
+        <div class="sudoku-board" id="sudoku-board" role="grid" aria-label="Sudoku Board 9x9">
+          <!-- Start Game Overlay -->
+          <div id="start-overlay" class="board-overlay">
+            <h2 class="overlay-title">Parth Sudoku</h2>
+            <p class="overlay-subtitle">A premium challenge of logic</p>
+            <button id="btn-start" class="btn btn-accent btn-lg" style="margin-top: 0.5rem;">Start Game</button>
+          </div>
+          <!-- Filled dynamically in app.js -->
+        </div>
+      </section>
+
+      <!-- Right Panel Controls -->
+      <section class="glass-panel control-panel" id="controls-panel">
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+          <div class="game-meta">
+            <span id="current-difficulty" class="difficulty-badge">Medium</span>
+          </div>
+
+          <div class="timer-wrapper">
+            <!-- Timer Clock Icon -->
+            <svg class="timer-icon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5"
+              fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span id="timer-display">00:00</span>
+          </div>
+        </div>
+
+        <!-- Action Grid (Undo, Redo, Notes, Hint) -->
+        <div class="action-grid">
+          <button id="btn-undo" class="game-action-btn" title="Undo Last Move">
+            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M3 7v6h6"></path>
+              <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
+            </svg>
+            Undo
+          </button>
+
+          <button id="btn-redo" class="game-action-btn" title="Redo Move">
+            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M21 7v6h-6"></path>
+              <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path>
+            </svg>
+            Redo
+          </button>
+
+          <button id="btn-pencil" class="game-action-btn" title="Toggle Pencil Mode (N)">
+            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+            Pencil
+          </button>
+
+          <button id="btn-hint" class="game-action-btn" title="Get a Hint (H)">
+            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path
+                d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .6 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5">
+              </path>
+              <line x1="9" y1="18" x2="15" y2="18"></line>
+              <line x1="10" y1="22" x2="14" y2="22"></line>
+            </svg>
+            Hint
+          </button>
+        </div>
+
+        <!-- Keypad (Numbers 1-9 + Erase) -->
+        <div class="number-keypad">
+          <button class="keypad-btn" data-num="1">1</button>
+          <button class="keypad-btn" data-num="2">2</button>
+          <button class="keypad-btn" data-num="3">3</button>
+          <button class="keypad-btn" data-num="4">4</button>
+          <button class="keypad-btn" data-num="5">5</button>
+          <button class="keypad-btn" data-num="6">6</button>
+          <button class="keypad-btn" data-num="7">7</button>
+          <button class="keypad-btn" data-num="8">8</button>
+          <button class="keypad-btn" data-num="9">9</button>
+          <button id="btn-erase" class="keypad-btn erase-btn" title="Erase Cell (Backspace/Delete)">Erase</button>
+        </div>
+
+        <!-- Bottom Primary Actions -->
+        <div style="display: flex; gap: 0.75rem; margin-top: auto;">
+          <button id="btn-pause" class="btn btn-accent btn-lg" style="flex: 1;">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="6" y="4" width="4" height="16"></rect>
+              <rect x="14" y="4" width="4" height="16"></rect>
+            </svg>
+            Pause
+          </button>
+          <button id="btn-new-game" class="btn btn-lg" style="flex: 1.5;">New Game</button>
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- ==========================================================================
+       MODALS & OVERLAYS
+       ========================================================================== -->
+
+  <!-- Difficulty Selector Modal -->
+  <dialog id="dialog-difficulty" aria-labelledby="diff-title">
+    <div class="modal-header">
+      <h2 id="diff-title" class="modal-title">Select Difficulty</h2>
+      <button class="modal-close" aria-label="Close modal" onclick="this.closest('dialog').close()">
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body difficulty-selector">
+      <button class="difficulty-option" data-diff="easy">
+        <div>
+          <div class="difficulty-name">Easy</div>
+          <div class="difficulty-desc">Ideal for beginners. Has plenty of pre-filled clues.</div>
+        </div>
+      </button>
+      <button class="difficulty-option" data-diff="medium">
+        <div>
+          <div class="difficulty-name">Medium</div>
+          <div class="difficulty-desc">A modest challenge for intermediate players.</div>
+        </div>
+      </button>
+      <button class="difficulty-option" data-diff="hard">
+        <div>
+          <div class="difficulty-name">Hard</div>
+          <div class="difficulty-desc">Requires logical reasoning and standard strategies.</div>
+        </div>
+      </button>
+      <button class="difficulty-option" data-diff="expert">
+        <div>
+          <div class="difficulty-name">Expert</div>
+          <div class="difficulty-desc">For masters of Sudoku. Very few clues provided.</div>
+        </div>
+      </button>
+    </div>
+  </dialog>
+
+  <!-- Game Paused Modal -->
+  <dialog id="dialog-paused" aria-labelledby="paused-title">
+    <div class="modal-body" style="text-align: center; padding: 1.5rem 0;">
+      <h2 id="paused-title" class="modal-title" style="margin-bottom: 0.5rem;">Game Paused</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Your timer is currently frozen.</p>
+      <button id="btn-resume" class="btn btn-accent btn-lg" style="width: 100%;">Resume Game</button>
+    </div>
+  </dialog>
+
+  <!-- Game Won Modal -->
+  <dialog id="dialog-won" aria-labelledby="won-title">
+    <div class="modal-body" style="text-align: center; padding: 1rem 0;">
+      <div style="font-size: 3rem; margin-bottom: 0.5rem;">🎉</div>
+      <h2 id="won-title" class="modal-title" style="margin-bottom: 1rem;">Sudoku Solved!</h2>
+
+      <div class="stats-grid" style="margin-bottom: 1.5rem;">
+        <div class="stats-card">
+          <div id="won-difficulty" class="stats-val" style="font-size: 1.2rem; text-transform: uppercase;">Medium</div>
+          <div class="stats-lbl">Difficulty</div>
+        </div>
+        <div class="stats-card">
+          <div id="won-time" class="stats-val">04:32</div>
+          <div class="stats-lbl">Time Taken</div>
+        </div>
+      </div>
+
+      <p id="new-record-msg"
+        style="color: var(--cell-text-user); font-weight: 600; margin-bottom: 1.5rem; display: none;">
+        🏆 New Best Time!
+      </p>
+
+      <div style="display: flex; gap: 0.75rem;">
+        <button onclick="document.getElementById('dialog-won').close()" class="btn" style="flex: 1;">Close</button>
+        <button id="btn-won-new-game" class="btn btn-accent" style="flex: 1.5;">New Game</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Statistics Modal -->
+  <dialog id="dialog-stats" aria-labelledby="stats-title">
+    <div class="modal-header">
+      <h2 id="stats-title" class="modal-title">Your Progress</h2>
+      <button class="modal-close" aria-label="Close modal" onclick="this.closest('dialog').close()">
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="stats-grid">
+        <div class="stats-card">
+          <div id="stats-played" class="stats-val">0</div>
+          <div class="stats-lbl">Played</div>
+        </div>
+        <div class="stats-card">
+          <div id="stats-won" class="stats-val">0</div>
+          <div class="stats-lbl">Won</div>
+        </div>
+      </div>
+
+      <div style="margin: 0.5rem 0;">
+        <h3 style="font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 0.75rem;">Best Times</h3>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <div
+            style="display: flex; justify-content: space-between; padding: 0.5rem; background: rgba(255, 255, 255, 0.02); border-radius: var(--radius-sm);">
+            <span style="font-weight: 500;">Easy</span>
+            <span id="best-easy" style="color: var(--color-primary); font-weight: 600;">--:--</span>
+          </div>
+          <div
+            style="display: flex; justify-content: space-between; padding: 0.5rem; background: rgba(255, 255, 255, 0.02); border-radius: var(--radius-sm);">
+            <span style="font-weight: 500;">Medium</span>
+            <span id="best-medium" style="color: var(--color-primary); font-weight: 600;">--:--</span>
+          </div>
+          <div
+            style="display: flex; justify-content: space-between; padding: 0.5rem; background: rgba(255, 255, 255, 0.02); border-radius: var(--radius-sm);">
+            <span style="font-weight: 500;">Hard</span>
+            <span id="best-hard" style="color: var(--color-primary); font-weight: 600;">--:--</span>
+          </div>
+          <div
+            style="display: flex; justify-content: space-between; padding: 0.5rem; background: rgba(255, 255, 255, 0.02); border-radius: var(--radius-sm);">
+            <span style="font-weight: 500;">Expert</span>
+            <span id="best-expert" style="color: var(--color-primary); font-weight: 600;">--:--</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem;">
+        <button id="btn-reset-stats" class="btn" style="color: var(--cell-text-error); flex: 1;">Clear Stats</button>
+        <button onclick="document.getElementById('dialog-stats').close()" class="btn btn-accent"
+          style="flex: 1.5;">Great</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="footer"></div>
+  <script src="../scripts/loadHeaderFooter.js"></script>
+  <!-- Bootstrap JS and dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"></script>
+
+  <!-- Application Logic -->
+  <script src="sudoku.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>

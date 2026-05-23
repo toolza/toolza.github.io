@@ -1,0 +1,734 @@
+/* ==========================================================================
+   SUDOKU GAME - MODERN DESIGN SYSTEM
+   ========================================================================== */
+
+/* Google Fonts Import */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  /* Common variables */
+  --font-display: 'Outfit', sans-serif;
+  --font-sans: 'Inter', sans-serif;
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-round: 50%;
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.2);
+  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.4);
+  
+  /* Dark Theme Palette (Default) */
+  --bg-app: radial-gradient(circle at 50% 50%, hsl(224, 71%, 15%) 0%, hsl(222, 47%, 9%) 100%);
+  --bg-card: rgba(15, 23, 42, 0.45);
+  --bg-card-hover: rgba(15, 23, 42, 0.6);
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --text-main: hsl(210, 40%, 96%);
+  --text-muted: hsl(215, 25%, 68%);
+  
+  /* Sudoku Specific Colors - Dark Theme */
+  --color-primary: hsl(263, 85%, 66%);
+  --color-primary-light: hsla(263, 85%, 66%, 0.12);
+  --color-primary-highlight: hsla(263, 85%, 66%, 0.25);
+  
+  --cell-bg-clue: rgba(255, 255, 255, 0.02);
+  --cell-bg-user: rgba(255, 255, 255, 0.05);
+  --cell-text-clue: hsl(210, 40%, 96%);
+  --cell-text-user: hsl(190, 90%, 50%);
+  --cell-text-error: hsl(0, 95%, 65%);
+  --cell-bg-error: hsla(0, 95%, 65%, 0.15);
+  --cell-bg-hover: rgba(255, 255, 255, 0.08);
+  --cell-bg-selected: hsla(263, 85%, 66%, 0.35);
+  --cell-bg-related: rgba(255, 255, 255, 0.035);
+  --cell-bg-same-num: hsla(190, 90%, 50%, 0.25);
+  
+  --grid-line: rgba(255, 255, 255, 0.08);
+  --grid-line-thick: rgba(255, 255, 255, 0.25);
+  
+  --btn-bg: rgba(255, 255, 255, 0.06);
+  --btn-bg-hover: rgba(255, 255, 255, 0.12);
+  --btn-bg-active: rgba(255, 255, 255, 0.18);
+  --btn-text: hsl(210, 40%, 96%);
+  --btn-accent-bg: hsl(263, 85%, 66%);
+  --btn-accent-text: white;
+}
+
+[data-theme="light"] {
+  /* Light Theme Palette */
+  --bg-app: radial-gradient(circle at 50% 50%, hsl(220, 30%, 97%) 0%, hsl(220, 20%, 90%) 100%);
+  --bg-card: rgba(255, 255, 255, 0.7);
+  --bg-card-hover: rgba(255, 255, 255, 0.85);
+  --border-glass: rgba(0, 0, 0, 0.06);
+  --text-main: hsl(222, 47%, 11%);
+  --text-muted: hsl(215, 16%, 47%);
+  
+  /* Sudoku Specific Colors - Light Theme */
+  --color-primary: hsl(262, 80%, 55%);
+  --color-primary-light: hsla(262, 80%, 55%, 0.08);
+  --color-primary-highlight: hsla(262, 80%, 55%, 0.15);
+  
+  --cell-bg-clue: rgba(0, 0, 0, 0.01);
+  --cell-bg-user: rgba(255, 255, 255, 0.9);
+  --cell-text-clue: hsl(222, 47%, 11%);
+  --cell-text-user: hsl(210, 100%, 45%);
+  --cell-text-error: hsl(0, 85%, 55%);
+  --cell-bg-error: hsla(0, 85%, 55%, 0.12);
+  --cell-bg-hover: rgba(0, 0, 0, 0.04);
+  --cell-bg-selected: hsla(262, 80%, 55%, 0.22);
+  --cell-bg-related: rgba(0, 0, 0, 0.025);
+  --cell-bg-same-num: hsla(210, 100%, 45%, 0.15);
+  
+  --grid-line: rgba(0, 0, 0, 0.08);
+  --grid-line-thick: rgba(0, 0, 0, 0.25);
+  
+  --btn-bg: rgba(0, 0, 0, 0.05);
+  --btn-bg-hover: rgba(0, 0, 0, 0.09);
+  --btn-bg-active: rgba(0, 0, 0, 0.14);
+  --btn-text: hsl(222, 47%, 11%);
+  --btn-accent-bg: hsl(262, 80%, 55%);
+  --btn-accent-text: white;
+  
+  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.2);
+}
+
+/* ==========================================================================
+   GLOBAL RESET & STRUCTURES
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--text-main);
+  background: var(--bg-app);
+  background-attachment: fixed;
+  min-block-size: 100dvb;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+/* App Layout Wrapper */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  inline-size: 100%;
+  max-inline-size: 1000px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  animation: fadeIn 0.6s ease;
+  flex: 1 0 auto;
+}
+
+/* Glass Card styling */
+.glass-panel {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 1.5rem;
+  transition: background var(--transition-normal), border var(--transition-normal);
+}
+
+/* ==========================================================================
+   HEADER SECTION
+   ========================================================================== */
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.brand-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--text-main) 30%, var(--color-primary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.brand-title span {
+  font-weight: 300;
+  font-family: var(--font-sans);
+  font-size: 0.65em;
+  padding: 0.2em 0.5em;
+  background: var(--color-primary-light);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+  -webkit-text-fill-color: initial;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* ==========================================================================
+   MAIN CONTENT AREA (GRID + PANEL)
+   ========================================================================== */
+
+.game-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 850px) {
+  .game-layout {
+    grid-template-columns: 1.2fr 1fr;
+    align-items: start;
+  }
+}
+
+/* Board Outer Wrapper */
+.board-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  inline-size: 100%;
+}
+
+/* ==========================================================================
+   SUDOKU GRID SIZING & STYLING
+   ========================================================================== */
+
+.sudoku-board {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  grid-template-rows: repeat(9, 1fr);
+  aspect-ratio: 1 / 1;
+  inline-size: 100%;
+  max-inline-size: min(85vw, 500px);
+  background: var(--bg-card);
+  border: 3px solid var(--grid-line-thick);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  position: relative;
+  transition: transform var(--transition-normal);
+}
+
+.sudoku-board.board-error {
+  animation: shake 0.4s ease;
+}
+
+/* Sudoku Cell */
+.sudoku-cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 4.5vw, 1.8rem);
+  font-weight: 600;
+  user-select: none;
+  cursor: pointer;
+  background-color: var(--cell-bg-user);
+  border: 0.5px solid var(--grid-line);
+  outline: none;
+  transition: background-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+/* 3x3 Box Borders */
+/* Every 3rd column gets a thick right border (except the last column) */
+.sudoku-cell:nth-child(9n+3),
+.sudoku-cell:nth-child(9n+6) {
+  border-right: 3px solid var(--grid-line-thick);
+}
+
+/* Every 3rd row gets a thick bottom border (except the last row) */
+.sudoku-cell:nth-child(n+19):nth-child(-n+27),
+.sudoku-cell:nth-child(n+46):nth-child(-n+54) {
+  border-bottom: 3px solid var(--grid-line-thick);
+}
+
+/* Cell Types & States */
+.sudoku-cell.original {
+  background-color: var(--cell-bg-clue);
+  color: var(--cell-text-clue);
+  font-weight: 700;
+}
+
+.sudoku-cell.user-input {
+  color: var(--cell-text-user);
+}
+
+.sudoku-cell.error {
+  color: var(--cell-text-error) !important;
+  background-color: var(--cell-bg-error);
+}
+
+/* Interactive States */
+.sudoku-cell:hover:not(.original.selected) {
+  background-color: var(--cell-bg-hover);
+}
+
+.sudoku-cell.highlighted {
+  background-color: var(--cell-bg-related);
+}
+
+.sudoku-cell.same-number {
+  background-color: var(--cell-bg-same-num);
+}
+
+.sudoku-cell.selected {
+  background-color: var(--cell-bg-selected);
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+  z-index: 10;
+}
+
+/* Cell Input Zoom-in Animation */
+.sudoku-cell span.cell-value {
+  display: inline-block;
+  animation: cellPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* ==========================================================================
+   PENCIL NOTES (MINI GRID)
+   ========================================================================== */
+
+.pencil-notes {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 4px;
+  pointer-events: none;
+}
+
+.pencil-note {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: clamp(0.55rem, 1.6vw, 0.75rem);
+  font-weight: 500;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.pencil-note.visible {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   GAME CONTROL PANEL
+   ========================================================================== */
+
+.control-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  inline-size: 100%;
+}
+
+/* Status Header (Difficulty, Timer) */
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-block-end: 1rem;
+  border-block-end: 1px solid var(--border-glass);
+}
+
+.game-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.difficulty-badge {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-primary);
+}
+
+.timer-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-main);
+  background: var(--btn-bg);
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-glass);
+}
+
+.timer-icon {
+  inline-size: 20px;
+  block-size: 20px;
+  fill: var(--text-muted);
+}
+
+.timer-colon {
+  animation: blink 1s infinite steps(1);
+}
+
+/* Game Main Actions Grid */
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+/* ==========================================================================
+   BUTTONS STYLING
+   ========================================================================== */
+
+button, .btn {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border-glass);
+  background-color: var(--btn-bg);
+  color: var(--btn-text);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 0.95rem;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+button:hover:not(:disabled), .btn:hover {
+  background-color: var(--btn-bg-hover);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+button:active:not(:disabled), .btn:active {
+  background-color: var(--btn-bg-active);
+  transform: scale(0.98);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Icon Buttons */
+.btn-icon-only {
+  padding: 0.6rem;
+  border-radius: var(--radius-round);
+  aspect-ratio: 1/1;
+}
+
+.btn-icon-only svg {
+  inline-size: 20px;
+  block-size: 20px;
+}
+
+/* Accent Action Buttons */
+.btn-accent {
+  background-color: var(--btn-accent-bg);
+  color: var(--btn-accent-text);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-accent:hover:not(:disabled) {
+  background-color: hsl(263, 85%, 72%);
+  box-shadow: var(--shadow-glow);
+}
+
+/* Large Button */
+.btn-lg {
+  padding: 0.8rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-size: 1.05rem;
+}
+
+/* Action button with text on bottom (for game actions like Pencil, Undo) */
+.game-action-btn {
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.6rem 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-md);
+}
+
+.game-action-btn svg {
+  inline-size: 20px;
+  block-size: 20px;
+}
+
+/* Active State for toggle buttons (like Pencil Mode) */
+.game-action-btn.active {
+  background-color: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* ==========================================================================
+   NUMBER KEYPAD
+   ========================================================================== */
+
+.number-keypad {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+  margin-block-start: 0.5rem;
+}
+
+.keypad-btn {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  padding: 0.8rem 0;
+  border-radius: var(--radius-md);
+}
+
+.keypad-btn.erase-btn {
+  grid-column: span 2;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Highlight corresponding numbers on keypad */
+.keypad-btn.highlighted-key {
+  box-shadow: 0 0 10px var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+/* ==========================================================================
+   MODALS AND DIALOGS (GLASSMORPHIC)
+   ========================================================================== */
+
+dialog {
+  margin: auto;
+  border: 1px solid var(--border-glass);
+  background: var(--bg-card);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  color: var(--text-main);
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  max-inline-size: 450px;
+  inline-size: 90%;
+  outline: none;
+  animation: modalScale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-block-end: 1.5rem;
+}
+
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Statistics Table Layout */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.stats-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  text-align: center;
+}
+
+.stats-val {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  margin-block-end: 0.25rem;
+}
+
+.stats-lbl {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+/* Difficulty selection cards inside dialog */
+.difficulty-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.difficulty-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.03);
+  text-align: left;
+}
+
+.difficulty-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--color-primary);
+}
+
+.difficulty-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.difficulty-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   ANIMATIONS & EFFECTS
+   ========================================================================== */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalScale {
+  from { transform: scale(0.9) translateY(20px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes cellPop {
+  0% { transform: scale(0.7); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* Firework Canvas for Success Screen */
+#fireworks-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  display: none;
+}
+
+/* Board Paused Blur State */
+.sudoku-board.paused .cell-value,
+.sudoku-board.paused .pencil-notes {
+  filter: blur(14px);
+  opacity: 0.12;
+  pointer-events: none;
+  transition: filter var(--transition-normal), opacity var(--transition-normal);
+}
+
+/* Board Start Overlay */
+.board-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+  transition: opacity var(--transition-normal), visibility var(--transition-normal);
+}
+
+.board-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.overlay-title {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--text-main) 30%, var(--color-primary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.overlay-subtitle {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+}
