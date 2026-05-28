@@ -1,9 +1,8 @@
-// veo3/worker.js
+// worker.js
 const corsHeaders = {
 	"access-control-allow-origin": "*",
-	"access-control-allow-methods": "POST, OPTIONS, GET",
+	"access-control-allow-methods": "GET, POST, OPTIONS",
 	"access-control-allow-headers": "content-type",
-	"access-control-max-age": "86400"
 };
 
 function json(payload, status = 200) {
@@ -11,7 +10,7 @@ function json(payload, status = 200) {
 		status,
 		headers: {
 			...corsHeaders,
-			"content-type": "application/json; charset=utf-8"
+			"content-type": "application/json",
 		}
 	});
 }
@@ -20,17 +19,22 @@ export default {
 	async fetch(request, env) {
 		const url = new URL(request.url);
 
-		// Health check
+		// Health Check
 		if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
-			return json({ status: "ok", message: "Veo 3 Proxy is running" });
+			return json({
+				status: "ok",
+				message: "Veo 3 Worker is running",
+				worker: "veo3-generator-proxy"
+			});
 		}
 
 		if (request.method === "OPTIONS") {
 			return new Response(null, { status: 204, headers: corsHeaders });
 		}
 
+		// Only allow POST
 		if (request.method !== "POST") {
-			return json({ error: "Method not allowed. Use POST." }, 405);
+			return json({ error: "Method not allowed" }, 405);
 		}
 
 		try {
@@ -40,39 +44,37 @@ export default {
 				return json({ error: "Prompt is required" }, 400);
 			}
 
-			const accountId = env.CLOUDFLARE_ACCOUNT_ID || body.accountId;
+			const accountId = env.CLOUDFLARE_ACCOUNT_ID;
 			const apiToken = env.CLOUDFLARE_API_TOKEN;
 
-			if (!apiToken) {
-				return json({ error: "Missing CLOUDFLARE_API_TOKEN secret" }, 500);
-			}
-			if (!accountId) {
-				return json({ error: "Account ID is required" }, 400);
-			}
+			if (!apiToken) return json({ error: "Missing API Token" }, 500);
+			if (!accountId) return json({ error: "Missing Account ID" }, 400);
 
-			const model = body.model || "google/veo-3";
-			const endpoint = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
+			const model = body.model || "@google/veo-3";
 
-			const cfResponse = await fetch(endpoint, {
-				method: "POST",
-				headers: {
-					"Authorization": `Bearer ${apiToken}`,
-					"Content-Type": "application/json"
-				},
-				body: JSON.stringify({
-					prompt: body.prompt,
-					duration: body.duration || "6s",
-					aspect_ratio: body.aspect_ratio || "16:9",
-					resolution: body.resolution || "720p",
-					generate_audio: body.generate_audio || false
-				})
-			});
+			const response = await fetch(
+				`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`,
+				{
+					method: "POST",
+					headers: {
+						"Authorization": `Bearer ${apiToken}`,
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						prompt: body.prompt,
+						duration: body.duration || "6s",
+						aspect_ratio: body.aspect_ratio || "16:9",
+						resolution: body.resolution || "720p",
+						generate_audio: body.generate_audio !== undefined ? body.generate_audio : false,
+					}),
+				}
+			);
 
-			const result = await cfResponse.json();
-			return json(result, cfResponse.status);
+			const result = await response.json();
+			return json(result, response.status);
 
-		} catch (err) {
-			return json({ error: err.message }, 500);
+		} catch (error) {
+			return json({ error: error.message }, 500);
 		}
 	}
 };
