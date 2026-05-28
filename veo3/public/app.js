@@ -15,7 +15,6 @@ const tokenInput = document.querySelector("#apiToken");
 const rememberInput = document.querySelector("#rememberCredentials");
 const toggleToken = document.querySelector("#toggleToken");
 const copyResponse = document.querySelector("#copyResponse");
-const apiBase = window.location.protocol === "file:" ? "http://127.0.0.1:3000" : "";
 
 const samplePrompts = [
   "A cinematic macro shot of a glass hummingbird forming from rain droplets on a mossy branch, golden hour light, shallow depth of field",
@@ -32,6 +31,45 @@ rememberInput.checked = Boolean(storedCredentials.accountId && storedCredentials
 function setStatus(text, tone = "neutral") {
   statusEl.textContent = text;
   statusEl.dataset.tone = tone;
+}
+
+function normalizeAccountId(value) {
+  const raw = String(value || "").trim();
+  const dashboardMatch = raw.match(/\/([a-f0-9]{32})(?:\/|$)/i);
+  return dashboardMatch ? dashboardMatch[1] : raw;
+}
+
+function modelPath(model) {
+  return String(model || "google/veo-3")
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+}
+
+function extractVideoUrl(payload) {
+  const result = payload?.result ?? payload;
+  return (
+    result?.video ||
+    result?.output?.video ||
+    result?.data?.video ||
+    result?.video_url ||
+    result?.url ||
+    null
+  );
+}
+
+async function readCloudflareResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: text.slice(0, 600) || "Cloudflare returned a non-JSON response." };
+  }
 }
 
 function updateCharCount() {
@@ -78,7 +116,7 @@ function persistCredentials() {
 function formPayload() {
   const data = new FormData(form);
   return {
-    accountId: accountInput.value.trim(),
+    accountId: normalizeAccountId(accountInput.value),
     apiToken: tokenInput.value.trim(),
     model: data.get("model"),
     prompt: data.get("prompt"),
@@ -117,6 +155,7 @@ copyResponse.addEventListener("click", async () => {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
+
   persistCredentials();
   setLoading(true);
   setStatus("Calling Cloudflare", "active");
@@ -126,26 +165,62 @@ form.addEventListener("submit", async (event) => {
 
   const startedAt = performance.now();
   try {
-    const response = await fetch(`${apiBase}/api/generate`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(formPayload())
-    });
-    const payload = await response.json();
-    responseJson.textContent = JSON.stringify(payload, null, 2);
+    const payload = formPayload();
 
-    if (!response.ok) {
-      throw new Error(payload.error || "Generation failed.");
+    if (!/^[a-f0-9]{32}$/i.test(payload.accountId)) {
+      throw new Error("Invalid Cloudflare Account ID. Use the 32-character ID from your Cloudflare dashboard URL.");
     }
 
-    setVideo(payload.videoUrl);
-    setStatus(payload.videoUrl ? "Video ready" : "Response received", payload.videoUrl ? "success" : "neutral");
-    elapsedTime.textContent = `${((payload.elapsedMs || performance.now() - startedAt) / 1000).toFixed(1)}s`;
+    if (!payload.apiToken) {
+      throw new Error("Cloudflare API token is required.");
+    }
+
+    const endpoint = `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(
+      payload.accountId
+    )}/ai/run/${modelPath(payload.model)}`;
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${payload.apiToken}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        prompt: payload.prompt.trim(),
+        duration: payload.duration,
+        aspect_ratio: payload.aspect_ratio,
+        resolution: payload.resolution,
+        generate_audio: payload.generate_audio
+      })
+    });
+
+    const responsePayload = await readCloudflareResponse(response);
+    const videoUrl = extractVideoUrl(responsePayload);
+    responseJson.textContent = JSON.stringify(responsePayload, null, 2);
+
+    if (!response.ok) {
+      const cloudflareMessage =
+        responsePayload?.errors?.[0]?.message ||
+        responsePayload?.messages?.[0]?.message ||
+        responsePayload?.error ||
+        "Cloudflare returned an error.";
+      throw new Error(cloudflareMessage);
+    }
+
+    setVideo(videoUrl);
+    setStatus(videoUrl ? "Video ready" : "Response received", videoUrl ? "success" : "neutral");
+    elapsedTime.textContent = `${((performance.now() - startedAt) / 1000).toFixed(1)}s`;
   } catch (error) {
     setStatus("Generation failed", "error");
     elapsedTime.textContent = "Error";
     responseJson.textContent = JSON.stringify(
-      { error: error instanceof Error ? error.message : "Generation failed." },
+      {
+        error: error instanceof Error ? error.message : "Generation failed.",
+        hint:
+          error instanceof TypeError
+            ? "If this says Failed to fetch, the browser may be blocking Cloudflare's API with CORS. A backend or Cloudflare Worker proxy is then required."
+            : undefined
+      },
       null,
       2
     );
