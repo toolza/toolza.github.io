@@ -59,6 +59,13 @@
               <span>API Token</span>
               <input id="apiToken" name="apiToken" type="password" autocomplete="off" placeholder="Workers AI token" required />
             </label>
+            <p class="field-hint">Only needed for direct browser mode. Prefer a Worker proxy so this token is never exposed.</p>
+
+            <label>
+              <span>Worker URL</span>
+              <input id="workerUrl" name="workerUrl" type="url" autocomplete="off" placeholder="https://your-worker.your-subdomain.workers.dev" />
+            </label>
+            <p class="field-hint">Recommended for static hosting. The Worker uses your Cloudflare secrets and avoids browser CORS.</p>
 
             <div class="save-row">
               <label class="checkbox-label">
